@@ -1,6 +1,6 @@
 <script lang="ts">
   import { nowValues, type Air, type Forecast } from '../lib/api';
-  import { aqiLevel, pollenNow } from '../lib/summary';
+  import { aqiLevel, pollenNow, pressureTrend } from '../lib/summary';
   import LeafIcon from '@lucide/svelte/icons/leaf';
   import FlowerIcon from '@lucide/svelte/icons/flower-2';
   import { compassLabel, fmtPct } from '../lib/i18n';
@@ -18,6 +18,7 @@
 
   const c = $derived(nowValues(forecast));
   const u = $derived(settings.units);
+  const trend = $derived(pressureTrend(forecast));
   const gust = $derived(Math.round(convertWind(c.wind_gusts_10m, u.wind)));
 </script>
 
@@ -37,7 +38,10 @@
   </div>
   <div>
     <dt><GaugeIcon size={16} /> {t('pressure')}</dt>
-    <dd>{Math.round(c.pressure_msl)} hPa</dd>
+    <dd>
+      {Math.round(c.pressure_msl)} hPa
+      {#if trend != null}<span class="sub">{trend >= 1 ? '↑' : trend <= -1 ? '↓' : '→'} {t(trend >= 1 ? 'rising' : trend <= -1 ? 'falling' : 'steady')}</span>{/if}
+    </dd>
   </div>
   <div class="wide">
     <dt><UmbrellaIcon size={16} /> {t('precipLastHour')}</dt>

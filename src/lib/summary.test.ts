@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Forecast } from './api';
-import { aqiLevel, nowcast, pollenNow, restOfToday, summarize, uvWindow, vsYesterday, wetPeriods } from './summary';
+import { aqiLevel, daylightChange, moonName, moonPhase, nowcast, pollenNow, pressureTrend, restOfToday, summarize, uvWindow, vsYesterday, wetPeriods } from './summary';
 import type { Air } from './api';
 import { METRIC } from './units';
 
@@ -123,5 +123,26 @@ describe('yesterday, UV, air', () => {
       { kind: 'birch', level: 'pHigh' },
       { kind: 'alder', level: 'pLow' },
     ]);
+  });
+});
+
+describe('pressure, daylight, moon', () => {
+  it('gives the pressure change over 3 hours', () => {
+    const f = make();
+    (f.hourly as unknown as { pressure_msl: number[] }).pressure_msl = f.hourly.time.map((_, i) => 1000 + i);
+    expect(pressureTrend(f, '2026-11-12T10:20')).toBe(3);
+  });
+
+  it('compares daylight with the day before', () => {
+    const f = make();
+    (f.daily as unknown as { sunrise: string[]; sunset: string[] }).sunrise = ['2026-11-12T07:50', '2026-11-13T07:52'];
+    (f.daily as unknown as { sunrise: string[]; sunset: string[] }).sunset = ['2026-11-12T16:01', '2026-11-13T15:59'];
+    expect(daylightChange(f, 1)).toBe(-4);
+    expect(daylightChange(f, 0)).toBeNull();
+  });
+
+  it('knows the moon phase', () => {
+    expect(moonName(moonPhase('2026-11-09'))).toBe('moonNew'); // new moon 9 Nov 2026
+    expect(moonName(moonPhase('2026-11-24'))).toBe('moonFull'); // full moon 24 Nov 2026
   });
 });

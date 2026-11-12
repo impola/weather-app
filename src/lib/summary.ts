@@ -236,3 +236,34 @@ export function pollenNow(air: Air): { kind: (typeof POLLEN)[number]; level: 'pL
   return out;
 }
 
+
+/** Change in air pressure over the last 3 hours (hPa), or null. */
+export function pressureTrend(f: Forecast, now = placeNow(f)): number | null {
+  const p = f.hourly.pressure_msl;
+  if (!p) return null;
+  const i = currentHourIndex(f, now);
+  if (i < 3 || p[i] == null || p[i - 3] == null) return null;
+  return p[i] - p[i - 3];
+}
+
+/** Minutes of daylight compared with the day before, or null without that day. */
+export function daylightChange(f: Forecast, day: number): number | null {
+  const d = f.daily;
+  if (day < 1 || !d.sunrise[day - 1]) return null;
+  const len = (i: number) => Date.parse(`${d.sunset[i]}:00Z`) - Date.parse(`${d.sunrise[i]}:00Z`);
+  return Math.round((len(day) - len(day - 1)) / 60000);
+}
+
+/** Moon phase 0..1 (0 new, 0.5 full) for a date "YYYY-MM-DD", from a known new moon. */
+export function moonPhase(date: string): number {
+  const SYNODIC = 29.530588853;
+  const known = Date.UTC(2000, 0, 6, 18, 14); // a new moon
+  const days = (Date.parse(`${date}T12:00:00Z`) - known) / 86400e3;
+  return (((days / SYNODIC) % 1) + 1) % 1;
+}
+
+/** Name of the phase (key in i18n) and a Meteocons-like icon name. */
+export function moonName(phase: number): string {
+  const names = ['moonNew', 'moonWaxCres', 'moonFirstQ', 'moonWaxGib', 'moonFull', 'moonWanGib', 'moonLastQ', 'moonWanCres'];
+  return names[Math.round(phase * 8) % 8];
+}

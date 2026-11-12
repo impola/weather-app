@@ -97,7 +97,8 @@
       </button>
       {#if inline && open === i}
         <div class="inline" transition:slide={{ duration: 220 }}>
-          <HourChart {forecast} day={i} {today} compact />
+          <!-- today's hours are already in the chart above -->
+          {#if i !== today}<HourChart {forecast} day={i} {today} compact />{/if}
           <div class="inline-detail"><DayDetail {forecast} day={i} {today} compact /></div>
         </div>
       {/if}

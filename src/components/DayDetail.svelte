@@ -6,7 +6,7 @@
   import { compassLabel, fmtDayLong, fmtHour, fmtPct, fmtTime, parseLocal } from '../lib/i18n';
   import { fmtPrecip, fmtWind } from '../lib/units';
   import { compassIndex, weatherInfo } from '../lib/weather';
-  import { restOfToday, uvWindow } from '../lib/summary';
+  import { daylightChange, moonName, moonPhase, restOfToday, uvWindow } from '../lib/summary';
   import { locale, settings, t } from '../lib/state.svelte';
   import WindArrow from './WindArrow.svelte';
 
@@ -28,6 +28,8 @@
   });
   const uv = $derived(d.uv_index_max[day]);
   const uvHours = $derived(uvWindow(forecast, day));
+  const dlChange = $derived(daylightChange(forecast, day));
+  const phase = $derived(moonPhase(d.time[day]));
   const sun = $derived(d.sunshine_duration?.[day]);
   const uvLevel = $derived(uv == null ? '' : uv < 3 ? 'low' : uv < 6 ? 'mid' : uv < 8 ? 'high' : 'vhigh');
 </script>
@@ -41,7 +43,11 @@
 <dl>
   <div><dt>{t('sunrise')}</dt><dd><SunriseIcon size={18} /> {fmtTime(settings.lang, d.sunrise[day])}</dd></div>
   <div><dt>{t('sunset')}</dt><dd><SunsetIcon size={18} /> {fmtTime(settings.lang, d.sunset[day])}</dd></div>
-  <div><dt>{t('daylight')}</dt><dd>{daylight}</dd></div>
+  <div>
+    <dt>{t('daylight')}</dt>
+    <dd>{daylight}</dd>
+    {#if dlChange != null}<dd class="note">{t('vsYesterdayMin', { d: `${dlChange > 0 ? '+' : dlChange < 0 ? '−' : '±'}${Math.abs(dlChange)}` })}</dd>{/if}
+  </div>
   <div>
     <dt>{rest ? t('precipRest') : t('precipSum')}</dt>
     <dd class="rain">
@@ -58,7 +64,11 @@
   {#if sun != null}
     <div><dt>{t('sunshine')}</dt><dd>{new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(sun / 3600)} h</dd></div>
   {/if}
-  <div class:wide={sun == null} class:wide2={sun != null}>
+  <div>
+    <dt>{t('moon')}</dt>
+    <dd><span class="moon" style="--p:{phase}" aria-hidden="true"></span> {t(moonName(phase) as never)}</dd>
+  </div>
+  <div class:wide={sun != null} class:wide2={sun == null}>
     <dt>{t('maxWind')}</dt>
     <dd>
       <WindArrow deg={d.wind_direction_10m_dominant[day]} />
@@ -80,6 +90,15 @@
   dd small { color: var(--muted); font-weight: 400; font-size: 13px; }
   .rain { color: var(--rain); }
   .note { font-size: 13px; font-weight: 400; color: var(--muted); }
+  /* the moon: a light disc with a shadow that moves with the phase */
+  .moon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex: none;
+    background: #e5e7eb;
+    box-shadow: inset calc((0.5 - var(--p)) * 32px) 0 0 0 rgba(15, 23, 42, 0.92);
+  }
   .uv { display: inline-block; min-width: 28px; text-align: center; padding: 1px 8px; border-radius: 8px; color: #111; }
   .uv.low { background: #86efac; }
   .uv.mid { background: #fde047; }
