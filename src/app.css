@@ -146,7 +146,7 @@ button { font: inherit; color: inherit; }
   gap: 14px;
   margin-top: 14px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "current" "chart" "days" "now" "map";
+  grid-template-areas: "current" "notices" "chart" "days" "now" "map";
   /* let the page handle vertical scroll and pinch, and the app horizontal swipes */
   touch-action: pan-y pinch-zoom;
 }
@@ -156,11 +156,13 @@ button { font: inherit; color: inherit; }
 .grid > .dayinfo { grid-area: dayinfo; }
 .grid > .now { grid-area: now; }
 .grid > .map { grid-area: map; }
+.grid > .notices { grid-area: notices; display: grid; gap: 10px; min-width: 0; }
 
 @media (min-width: 900px) {
   .grid {
     grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
+      "current notices notices"
       "current chart chart"
       "now days dayinfo"
       "now map map";

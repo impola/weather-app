@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Forecast } from './api';
-import { restOfToday, summarize, wetPeriods } from './summary';
+import { nowcast, restOfToday, summarize, wetPeriods } from './summary';
 import { METRIC } from './units';
 
 /** 48 hours from 2026-11-12 00:00; now is 10:00 */
@@ -68,5 +68,33 @@ describe('rest of today', () => {
     expect(r.precip).toBeCloseTo(7);
     expect(r.precipSoFar).toBeCloseTo(20);
     expect(r.code).toBe(61);
+  });
+});
+
+describe('nowcast', () => {
+  const withQuarters = (mm: number[]) => {
+    const f = make();
+    const time = mm.map((_, i) => { const m = 10 * 60 + i * 15; return `2026-11-12T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; });
+    (f as unknown as { minutely_15: unknown }).minutely_15 = { time, precipitation: mm };
+    return f;
+  };
+
+  it('is null when it stays dry', () => {
+    expect(nowcast(withQuarters([0, 0, 0, 0, 0, 0, 0, 0, 0]), '2026-11-12T10:05')).toBeNull();
+  });
+
+  it('says when rain starts', () => {
+    const n = nowcast(withQuarters([0, 0, 0.3, 0.5, 0.2, 0, 0, 0, 0]), '2026-11-12T10:05');
+    expect(n).toMatchObject({ key: 'ncStarts', minutes: 25 });
+    expect(n!.steps).toHaveLength(8);
+  });
+
+  it('says when rain stops, or that it goes on', () => {
+    expect(nowcast(withQuarters([0.4, 0.4, 0.2, 0, 0, 0, 0, 0, 0]), '2026-11-12T10:10')).toMatchObject({ key: 'ncStops', minutes: 35 });
+    expect(nowcast(withQuarters([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]), '2026-11-12T10:10')).toMatchObject({ key: 'ncAll' });
+  });
+
+  it('says nothing from an old copy', () => {
+    expect(nowcast(withQuarters([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]), '2026-11-12T13:00')).toBeNull();
   });
 });

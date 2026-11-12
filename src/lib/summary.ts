@@ -146,3 +146,39 @@ export function restOfToday(f: Forecast, now = placeNow(f)): Rest {
     gustMax: Math.max(...h.wind_gusts_10m.slice(from, to)),
   };
 }
+
+export interface Nowcast {
+  /** 15-minute steps from now, two hours */
+  steps: { time: string; mm: number }[];
+  /** the text: key and parameters for i18n */
+  key: 'ncStarts' | 'ncStops' | 'ncAll';
+  minutes: number;
+  kind: Kind;
+}
+
+const NC_WET = 0.1; // mm in 15 minutes
+
+/**
+ * Precipitation in the next two hours, or null when it stays dry (or the data is
+ * too old to say anything about now).
+ */
+export function nowcast(f: Forecast, now = placeNow(f)): Nowcast | null {
+  const m = f.minutely_15;
+  if (!m) return null;
+  // the quarter we are in
+  const q = `${now.slice(0, 14)}${String(Math.floor(Number(now.slice(14, 16)) / 15) * 15).padStart(2, '0')}`;
+  const start = m.time.findIndex((t) => t >= q);
+  if (start < 0 || m.time.length - start < 6) return null;
+  const steps = m.time.slice(start, start + 8).map((time, i) => ({ time, mm: m.precipitation[start + i] ?? 0 }));
+  const wet = steps.map((s) => s.mm >= NC_WET);
+  if (!wet.some(Boolean)) return null;
+  const minutesTo = (t: string) => Math.max(0, Math.round((Date.parse(`${t}:00Z`) - Date.parse(`${now}:00Z`)) / 60000 / 5) * 5);
+  const kind = kindOf(f.hourly.weather_code[currentHourIndex(f, now)] ?? 61);
+  if (wet[0]) {
+    const stop = wet.indexOf(false);
+    if (stop < 0) return { steps, key: 'ncAll', minutes: 0, kind };
+    return { steps, key: 'ncStops', minutes: Math.max(5, minutesTo(steps[stop].time)), kind };
+  }
+  const begin = wet.indexOf(true);
+  return { steps, key: 'ncStarts', minutes: Math.max(5, minutesTo(steps[begin].time)), kind };
+}

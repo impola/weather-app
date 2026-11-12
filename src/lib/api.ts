@@ -51,6 +51,11 @@ export interface Forecast {
     wind_direction_10m: number[];
     is_day: number[];
   };
+  /** precipitation in 15-minute steps for the next two hours */
+  minutely_15?: {
+    time: string[];
+    precipitation: number[];
+  };
   daily: {
     time: string[];
     weather_code: number[];
@@ -80,6 +85,8 @@ export function forecastUrl(lat: number, lon: number): string {
     current: 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,precipitation,pressure_msl',
     hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,pressure_msl,weather_code,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max',
+    minutely_15: 'precipitation',
+    forecast_minutely_15: '9',
     wind_speed_unit: 'ms',
     timezone: 'auto',
     forecast_days: '7',
@@ -89,6 +96,13 @@ export function forecastUrl(lat: number, lon: number): string {
 
 export function fetchForecast(place: Place, signal?: AbortSignal): Promise<Forecast> {
   return getJSON<Forecast>(forecastUrl(place.lat, place.lon), signal);
+}
+
+/** The weather right now at a point (for the map popup). */
+export async function fetchPoint(lat: number, lon: number, signal?: AbortSignal): Promise<{ temperature_2m: number; weather_code: number; is_day: number }> {
+  const params = new URLSearchParams({ latitude: String(lat), longitude: String(lon), current: 'temperature_2m,weather_code,is_day', timezone: 'auto' });
+  const data = await getJSON<{ current: { temperature_2m: number; weather_code: number; is_day: number } }>(`${FORECAST_URL}?${params}`, signal);
+  return data.current;
 }
 
 interface GeoResult {

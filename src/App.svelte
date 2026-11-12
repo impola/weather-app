@@ -12,6 +12,10 @@
   import MapView from './components/MapView.svelte';
   import Settings from './components/Settings.svelte';
   import Details from './components/Details.svelte';
+  import Nowcast from './components/Nowcast.svelte';
+  import Alerts from './components/Alerts.svelte';
+  import { nowcast } from './lib/summary';
+  import { fetchWarnings, inSweden, warningsAt, type ApiWarning } from './lib/warnings';
   import SettingsIcon from '@lucide/svelte/icons/settings';
   import { SKY_TOP, skyFor } from './lib/weather';
 
@@ -74,6 +78,18 @@
     load(place);
   });
 
+  // SMHI warnings for places in Sweden (fetched with the forecast, kept 15 min)
+  let warningData = $state<ApiWarning[] | null>(null);
+  $effect(() => {
+    const p = settings.active;
+    void fetchedAt; // again when the forecast is refreshed
+    if (!p || !inSweden(p.lat, p.lon)) return;
+    fetchWarnings().then((d) => (warningData = d)).catch((err) => console.warn('warnings', err));
+  });
+  const warnings = $derived(settings.active && warningData && inSweden(settings.active.lat, settings.active.lon)
+    ? warningsAt(warningData, settings.active.lat, settings.active.lon, settings.lang) : []);
+  const nc = $derived(forecast ? nowcast(forecast) : null);
+
   // the first day that is not in the past (an old offline copy can start yesterday)
   const today = $derived(forecast ? todayIndex(forecast) : 0);
   const selDay = $derived(Math.max(day, today));
@@ -118,10 +134,9 @@
     );
   }
 
-  async function pickOnMap(lat: number, lon: number) {
-    const named = await placeName(lat, lon, settings.lang);
-    const name = named?.name ?? `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
-    show({ id: placeId(lat, lon), name, detail: named?.detail, lat, lon });
+  function pickOnMap(p: { lat: number; lon: number; name: string; detail?: string }) {
+    show({ id: placeId(p.lat, p.lon), name: p.name, detail: p.detail, lat: p.lat, lon: p.lon });
+    scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   onMount(() => {
@@ -188,16 +203,23 @@
   {#if forecast && settings.active}
     <main class="grid" onpointerdown={swipeStart} onpointerup={swipeEnd} onpointercancel={() => (swipe = null)}>
       <section class="current"><Current {forecast} place={settings.active} {fetchedAt} {loading} /></section>
+      {#if warnings.length || nc}
+        <section class="notices">
+          <Alerts {warnings} />
+          {#if nc}<div class="card"><Nowcast {nc} /></div>{/if}
+        </section>
+      {/if}
       <section class="card now"><Details {forecast} /></section>
       <section class="card chart no-swipe"><HourChart {forecast} day={narrow ? today : selDay} {today} /></section>
       <section class="card days"><DayList {forecast} day={selDay} {today} inline={narrow} onselect={(d) => (day = d)} /></section>
       {#if !narrow}<section class="card dayinfo"><DayDetail {forecast} day={selDay} {today} /></section>{/if}
-      <section class="card map no-swipe"><MapView place={settings.active} onpick={pickOnMap} /></section>
+      <section class="card map no-swipe"><MapView place={settings.active} night={nowValues(forecast).is_day === 0} onpick={pickOnMap} /></section>
     </main>
     <p class="credit">
       {t('data')}: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>,
       <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>,
-      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>,
+      <a href="https://www.smhi.se/" target="_blank" rel="noopener">SMHI</a>
     </p>
   {:else if failed}
     <div class="empty">

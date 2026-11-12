@@ -33,7 +33,7 @@
 {#if !compact}<h2>{fmtDayLong(settings.lang, d.time[day])}</h2>{/if}
 <p class="summary">
   <WxIcon name={w.icon} size={36} />
-  <span>{t(w.key as never)}{#if rest}<small> · {t('restOfDay').toLowerCase()}</small>{/if}</span>
+  <span>{t(w.key as never)}{#if rest}<small class="rest">· {t('restOfDay').toLowerCase()}</small>{/if}</span>
 </p>
 
 <dl>
@@ -62,6 +62,7 @@
 <style>
   .summary { margin: -4px 0 12px; font-size: 17px; display: flex; align-items: center; gap: 6px; }
   .summary small { color: var(--muted); font-size: 14px; }
+  .rest { margin-left: 0.35em; }
   dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; margin: 0; }
   .wide { grid-column: 1 / -1; }
   dt { font-size: 13px; color: var(--muted); }
