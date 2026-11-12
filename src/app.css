@@ -114,6 +114,8 @@ button { font: inherit; color: inherit; }
   margin-top: 14px;
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "current" "chart" "days" "detail" "map";
+  /* let the page handle vertical scroll and pinch, and the app horizontal swipes */
+  touch-action: pan-y pinch-zoom;
 }
 .grid > .current { grid-area: current; }
 .grid > .chart { grid-area: chart; }

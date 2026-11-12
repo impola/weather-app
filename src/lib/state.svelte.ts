@@ -1,7 +1,7 @@
 // App state shared by the components, kept in localStorage between visits.
 import { detectLang, translate, LOCALE, type Key, type Lang } from './i18n';
 import { defaultUnits, type Units } from './units';
-import type { Forecast, Place } from './api';
+import { placeName, searchPlaces, type Forecast, type Place } from './api';
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -27,7 +27,7 @@ export const settings = $state({
   places: load<Place[]>('places', []),
   /** where the user is (from the location service), if known */
   here: load<Place | null>('here', null),
-  /** the place shown now: saved, here, or a search / map result not saved */
+  /** the place shown now: saved, here, or a search / map result not saved (kept only for this visit) */
   active: load<Place | null>('active', null),
 });
 
@@ -38,10 +38,20 @@ export function persistSettings(): void {
     $effect(() => save('units', $state.snapshot(settings.units)));
     $effect(() => save('places', $state.snapshot(settings.places)));
     $effect(() => save('here', $state.snapshot(settings.here)));
-    $effect(() => save('active', $state.snapshot(settings.active)));
+    // a place from a search or a map tap is not remembered after the app is closed
     $effect(() => {
-      document.documentElement.lang = settings.lang;
-      document.title = translate(settings.lang, 'appName');
+      const a = settings.active;
+      save('active', a && (isSaved(a) || a.id === settings.here?.id) ? $state.snapshot(a) : null);
+    });
+    let lastLang = settings.lang;
+    $effect(() => {
+      const lang = settings.lang;
+      document.documentElement.lang = lang;
+      document.title = translate(lang, 'appName');
+      if (lang !== lastLang) {
+        lastLang = lang;
+        void relabelPlaces(lang);
+      }
     });
   });
 }
@@ -81,6 +91,28 @@ export function tabs(): { place: Place; here: boolean }[] {
   const a = settings.active;
   if (a && !out.some((x) => x.place.id === a.id)) out.push({ place: a, here: false });
   return out;
+}
+
+/** Names and regions of the places in the new language (they are stored as fetched). */
+async function relabelPlaces(lang: Lang): Promise<void> {
+  const label = async (p: Place): Promise<Place> => {
+    try {
+      const hit = (await searchPlaces(p.name, lang)).find((r) => r.id === p.id);
+      if (hit) return { ...p, name: hit.name, detail: hit.detail };
+    } catch {
+      /* fall back to the coordinate lookup */
+    }
+    const named = await placeName(p.lat, p.lon, lang);
+    return named ? { ...p, name: named.name, detail: named.detail } : p;
+  };
+  const extra = [settings.here, settings.active].filter((p): p is Place => !!p);
+  const all = [...settings.places, ...extra.filter((p) => !settings.places.some((q) => q.id === p.id))];
+  const done = await Promise.all(all.map((p) => label($state.snapshot(p) as Place)));
+  if (settings.lang !== lang) return; // changed again meanwhile
+  const byId = new Map(done.map((p) => [p.id, p]));
+  settings.places = settings.places.map((p) => byId.get(p.id) ?? p);
+  if (settings.here) settings.here = byId.get(settings.here.id) ?? settings.here;
+  if (settings.active) settings.active = byId.get(settings.active.id) ?? settings.active;
 }
 
 // ---------- forecast copies for offline use ----------

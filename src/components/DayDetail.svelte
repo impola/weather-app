@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { Forecast } from '../lib/api';
-  import { compassLabel, fmtDayLong, fmtTime, parseLocal } from '../lib/i18n';
+  import { compassLabel, fmtDayLong, fmtPct, fmtTime, parseLocal } from '../lib/i18n';
   import { fmtPrecip, fmtWind } from '../lib/units';
   import { compassIndex, weatherInfo } from '../lib/weather';
   import { locale, settings, t } from '../lib/state.svelte';
   import WindArrow from './WindArrow.svelte';
 
-  let { forecast, day }: { forecast: Forecast; day: number } = $props();
+  let { forecast, day, today }: { forecast: Forecast; day: number; today: number } = $props();
 
   const d = $derived(forecast.daily);
   const u = $derived(settings.units);
@@ -28,7 +28,7 @@
   <div><dt>{t('sunset')}</dt><dd>🌇 {fmtTime(settings.lang, d.sunset[day])}</dd></div>
   <div><dt>{t('daylight')}</dt><dd>{daylight}</dd></div>
   <div><dt>{t('precipSum')}</dt><dd class="rain">{fmtPrecip(d.precipitation_sum[day], u.precip, locale())}</dd></div>
-  <div><dt>{t('precipChance')}</dt><dd class="rain">{d.precipitation_probability_max[day] ?? 0} %</dd></div>
+  <div><dt>{t('precipChance')}</dt><dd class="rain">{fmtPct(settings.lang, d.precipitation_probability_max[day])}</dd></div>
   <div><dt>{t('uvIndex')}</dt><dd><span class="uv {uvLevel}">{uv == null ? '–' : Math.round(uv)}</span></dd></div>
   <div class="wide">
     <dt>{t('maxWind')}</dt>

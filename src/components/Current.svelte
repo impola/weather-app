@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Forecast, Place } from '../lib/api';
-  import { compassLabel, fmtClock } from '../lib/i18n';
+  import { nowValues, todayIndex, type Forecast, type Place } from '../lib/api';
+  import { compassLabel, fmtPct, fmtStamp } from '../lib/i18n';
   import { fmtPrecip, fmtTemp, fmtWind } from '../lib/units';
   import { compassIndex, weatherInfo } from '../lib/weather';
   import { isSaved, locale, settings, t, toggleSaved } from '../lib/state.svelte';
@@ -8,7 +8,8 @@
 
   let { forecast, place, fetchedAt, loading }: { forecast: Forecast; place: Place; fetchedAt: number; loading: boolean } = $props();
 
-  const c = $derived(forecast.current);
+  const c = $derived(nowValues(forecast));
+  const today = $derived(todayIndex(forecast));
   const w = $derived(weatherInfo(c.weather_code, c.is_day === 1));
   const u = $derived(settings.units);
   const saved = $derived(isSaved(place));
@@ -33,8 +34,8 @@
   </div>
   <p class="desc">{t(w.key as never)}</p>
   <p class="range">
-    {t('high')}: {fmtTemp(forecast.daily.temperature_2m_max[0], u.temp)}
-    &nbsp; {t('low')}: {fmtTemp(forecast.daily.temperature_2m_min[0], u.temp)}
+    {t('high')} {fmtTemp(forecast.daily.temperature_2m_max[today], u.temp)}
+    · {t('low')} {fmtTemp(forecast.daily.temperature_2m_min[today], u.temp)}
   </p>
 
   <dl class="facts">
@@ -48,14 +49,14 @@
       </dd>
     </div>
     <div><dt>{t('gusts')}</dt><dd>{fmtWind(c.wind_gusts_10m, u.wind, locale())}</dd></div>
-    <div><dt>{t('humidity')}</dt><dd>{c.relative_humidity_2m} %</dd></div>
+    <div><dt>{t('humidity')}</dt><dd>{fmtPct(settings.lang, c.relative_humidity_2m)}</dd></div>
     <div><dt>{t('precipitation')}</dt><dd>{fmtPrecip(c.precipitation, u.precip, locale())}</dd></div>
     <div><dt>{t('pressure')}</dt><dd>{Math.round(c.pressure_msl)} hPa</dd></div>
   </dl>
 
   <p class="updated">
     {#if loading}<span class="dot" aria-hidden="true"></span>{/if}
-    {t('updated', { time: fmtClock(settings.lang, new Date(fetchedAt)) })}
+    {t('updated', { time: fmtStamp(settings.lang, new Date(fetchedAt)) })}
   </p>
 </div>
 
@@ -94,7 +95,7 @@
     border-radius: 14px;
     padding: 10px 6px;
   }
-  dt { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  dt { overflow-wrap: anywhere; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   dd { margin: 4px 0 0; font-size: 16px; font-weight: 500; display: flex; justify-content: center; align-items: center; gap: 4px; flex-wrap: wrap; }
   dd small { color: var(--muted); font-weight: 400; }
 

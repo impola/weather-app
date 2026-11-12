@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DICTS, detectLang, fmtDayLong, fmtDayShort, fmtHour, fmtTime, parseLocal, translate, compassLabel } from './i18n';
+import { DICTS, detectLang, fmtDayLong, fmtDayShort, fmtHour, fmtPct, fmtTime, parseLocal, translate, compassLabel } from './i18n';
 import { convertPrecip, convertTemp, convertWind, defaultUnits, fmtPrecip, fmtTemp, fmtWind } from './units';
-import { WMO_KEYS, compassIndex, weatherInfo } from './weather';
-import { chartRange, currentHourIndex, placeId, type Forecast } from './api';
+import { WMO_KEYS, compassIndex, tempColor, tempGradient, weatherInfo } from './weather';
+import { chartRange, currentHourIndex, nowValues, placeId, placeNow, todayIndex, type Forecast } from './api';
 
 describe('i18n', () => {
   it('has the same keys in Swedish and English, and a text for every weather code', () => {
@@ -36,6 +36,7 @@ describe('i18n', () => {
   it('names days', () => {
     expect(fmtDayShort('sv', '2026-11-12', 0)).toBe('Idag');
     expect(fmtDayShort('en', '2026-11-13', 1)).toBe('Tomorrow');
+    expect(fmtDayShort('sv', '2026-11-13', 1)).toBe('Imorgon');
     expect(fmtDayShort('sv', '2026-11-14', 2)).toBe('Lör');
     expect(fmtDayShort('en', '2026-11-14', 2)).toBe('Sat');
     expect(fmtDayLong('sv', '2026-11-12')).toBe('Torsdag 12 november');
@@ -47,6 +48,24 @@ describe('i18n', () => {
     expect(compassLabel('en', compassIndex(225))).toBe('SW');
     expect(compassIndex(359)).toBe(0);
     expect(compassIndex(-45)).toBe(7);
+  });
+});
+
+describe('percentages', () => {
+  it('uses a space in Swedish and none in English', () => {
+    expect(fmtPct('sv', 61)).toBe('61\u00a0%');
+    expect(fmtPct('en', 61)).toBe('61%');
+    expect(fmtPct('sv', null)).toBe('–');
+  });
+});
+
+describe('temperature colours', () => {
+  it('follows the absolute scale', () => {
+    expect(tempColor(0)).toBe('rgb(103,232,249)');
+    expect(tempColor(-40)).toBe(tempColor(-20));
+    expect(tempColor(5)).toBe('rgb(178,228,160)');
+    expect(tempGradient(2, 2)).toBe(tempColor(2));
+    expect(tempGradient(-5, 15)).toMatch(/^linear-gradient\(90deg, rgb\(.*\) 0\.0%, rgb\(103,232,249\) 25\.0%, rgb\(253,224,71\) 75\.0%, .* 100\.0%\)$/);
   });
 });
 
@@ -102,6 +121,27 @@ describe('forecast ranges', () => {
   it('shows a whole later day', () => {
     expect(chartRange(f, 2)).toEqual([48, 72]);
     expect(chartRange(f, 6)).toEqual([144, 168]);
+  });
+
+  it('uses the clock, not the data, to find now and today (old offline copy)', () => {
+    const old = {
+      ...f,
+      utc_offset_seconds: 3600,
+      current: { time: '2026-11-12T14:15', temperature_2m: 5 },
+      hourly: { ...f.hourly, temperature_2m: hours.map((_, i) => i), weather_code: hours.map(() => 3), is_day: hours.map(() => 1),
+        wind_speed_10m: hours.map(() => 1), wind_gusts_10m: hours.map(() => 2), wind_direction_10m: hours.map(() => 90), precipitation: hours.map(() => 0) },
+    } as unknown as Forecast;
+    // a day and a half later: 2026-11-14 00:30 UTC = 01:30 local time
+    const later = Date.UTC(2026, 10, 14, 0, 30);
+    expect(placeNow(old, later)).toBe('2026-11-14T01:30');
+    const now = placeNow(old, later);
+    expect(currentHourIndex(old, now)).toBe(49);
+    expect(todayIndex(old, now)).toBe(2);
+    expect(chartRange(old, 0, now)).toEqual([49, 97]);
+    expect(chartRange(old, 3, now)).toEqual([72, 96]);
+    expect(nowValues(old, now).temperature_2m).toBe(49);
+    // fresh data: the current block is used as is
+    expect(nowValues(old, placeNow(old, Date.UTC(2026, 10, 12, 13, 20))).temperature_2m).toBe(5);
   });
 
   it('makes stable place ids', () => {

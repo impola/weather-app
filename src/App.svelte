@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fetchForecast, placeId, placeName, type Forecast, type Place } from './lib/api';
-  import { fmtClock } from './lib/i18n';
+  import { fetchForecast, nowValues, placeId, placeName, todayIndex, type Forecast, type Place } from './lib/api';
+  import { fmtStamp } from './lib/i18n';
   import { cacheForecast, cachedForecast, settings, t, tabs } from './lib/state.svelte';
   import PlaceBar from './components/PlaceBar.svelte';
+  import PlaceTabs from './components/PlaceTabs.svelte';
   import Current from './components/Current.svelte';
   import DayList from './components/DayList.svelte';
   import HourChart from './components/HourChart.svelte';
@@ -21,53 +22,58 @@
   let loading = $state(false);
   let failed = $state(false);
   let message = $state('');
-  let day = $state(0);
+  /** chosen day (index in the daily data); -1 or anything before today means today */
+  let day = $state(-1);
   let settingsOpen = $state(false);
   let controller: AbortController | null = null;
 
   async function load(place: Place, force = false) {
-    const copy = cachedForecast(place.id);
-    if (copy) {
-      forecast = copy.data;
-      fetchedAt = copy.at;
-      if (!force && Date.now() - copy.at < FRESH_MS) {
-        offline = false;
-        return;
-      }
-    } else {
-      forecast = null;
-    }
+    // stop a fetch for the previous place first, so it can never overwrite this one
     controller?.abort();
-    controller = new AbortController();
-    const signal = controller.signal;
-    loading = true;
+    controller = null;
+    loading = false;
     failed = false;
+    const copy = cachedForecast(place.id);
+    forecast = copy?.data ?? null;
+    fetchedAt = copy?.at ?? 0;
+    offline = false;
+    if (copy && !force && Date.now() - copy.at < FRESH_MS) return;
+
+    const c = new AbortController();
+    controller = c;
+    loading = true;
     try {
-      const data = await fetchForecast(place, signal);
-      if (signal.aborted) return;
+      const data = await fetchForecast(place, c.signal);
+      if (c.signal.aborted || settings.active?.id !== place.id) return;
       forecast = data;
       fetchedAt = Date.now();
-      offline = false;
       cacheForecast(place.id, data);
     } catch (err) {
-      if (signal.aborted) return;
+      if (c.signal.aborted || settings.active?.id !== place.id) return;
       console.warn(err);
       offline = !!copy;
       failed = !copy;
     } finally {
-      if (!signal.aborted) loading = false;
+      if (controller === c) {
+        loading = false;
+        controller = null;
+      }
     }
   }
 
-  // load when the shown place changes; start on today
+  // load when the shown place changes
   let lastId = '';
   $effect(() => {
     const place = settings.active;
     if (!place || place.id === lastId) return;
     lastId = place.id;
-    day = 0;
+    day = -1; // today, whatever index that is in the data
     load(place);
   });
+
+  // the first day that is not in the past (an old offline copy can start yesterday)
+  const today = $derived(forecast ? todayIndex(forecast) : 0);
+  const selDay = $derived(Math.max(day, today));
 
   function show(place: Place) {
     settings.active = place;
@@ -123,7 +129,7 @@
 
   // night colours when it is dark at the place shown
   $effect(() => {
-    document.body.classList.toggle('night', forecast ? forecast.current.is_day === 0 : false);
+    document.body.classList.toggle('night', forecast ? nowValues(forecast).is_day === 0 : false);
   });
 
   // swipe left / right between places (not on the chart or the map)
@@ -150,13 +156,14 @@
     <PlaceBar onshow={show} onlocate={locate} />
     <button class="icon-btn gear" aria-label={t('settings')} title={t('settings')} onclick={() => (settingsOpen = true)}>⚙️</button>
   </header>
+  <PlaceTabs onshow={show} />
 
   {#if message}
     <p class="status" role="status">{message}</p>
   {/if}
   {#if offline}
     <p class="status warn" role="status">
-      {t('offlineData', { time: fmtClock(settings.lang, new Date(fetchedAt)) })}
+      {t('offlineData', { time: fmtStamp(settings.lang, new Date(fetchedAt)) })}
       <button class="link" onclick={() => settings.active && load(settings.active, true)}>{t('retry')}</button>
     </p>
   {/if}
@@ -164,9 +171,9 @@
   {#if forecast && settings.active}
     <main class="grid" onpointerdown={swipeStart} onpointerup={swipeEnd} onpointercancel={() => (swipe = null)}>
       <section class="current"><Current {forecast} place={settings.active} {fetchedAt} {loading} /></section>
-      <section class="card chart no-swipe"><HourChart {forecast} {day} /></section>
-      <section class="card days"><DayList {forecast} bind:day /></section>
-      <section class="card detail"><DayDetail {forecast} {day} /></section>
+      <section class="card chart no-swipe"><HourChart {forecast} day={selDay} {today} /></section>
+      <section class="card days"><DayList {forecast} day={selDay} {today} onselect={(d) => (day = d)} /></section>
+      <section class="card detail"><DayDetail {forecast} day={selDay} {today} /></section>
       <section class="card map no-swipe"><MapView place={settings.active} onpick={pickOnMap} /></section>
     </main>
     <p class="credit">

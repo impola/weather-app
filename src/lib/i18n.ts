@@ -42,13 +42,13 @@ const sv = {
   humidity: 'Luftfuktighet',
   gusts: 'Byar',
   pressure: 'Lufttryck',
-  high: 'H',
-  low: 'L',
+  high: 'Max',
+  low: 'Min',
   next48: 'Kommande 48 timmar',
   hoursOf: 'Timme för timme, {day}',
   forecast7: '7 dagar',
   today: 'Idag',
-  tomorrow: 'I morgon',
+  tomorrow: 'Imorgon',
   now: 'Nu',
   sunrise: 'Soluppgång',
   sunset: 'Solnedgång',
@@ -58,14 +58,14 @@ const sv = {
   precipChance: 'Risk för nederbörd',
   maxWind: 'Max vind',
   map: 'Karta',
-  mapHint: 'Klicka på kartan för att se vädret där.',
+  mapHint: 'Tryck på kartan för att se vädret där.',
   radar: 'Regnradar',
   play: 'Spela',
   pause: 'Pausa',
   radarTime: 'Radarbild {time}',
   radarFailed: 'Radarn kunde inte hämtas.',
   chartLabel: 'Temperatur och nederbörd per timme. Använd piltangenterna för att stega.',
-  chartValue: '{time}: {temp}, {desc}, nederbörd {precip}, risk {pop} %, vind {wind}',
+  chartValue: '{time}: {temp}, {desc}, nederbörd {precip}, risk {pop}, vind {wind}',
   dayButton: '{day}: {desc}, {low} till {high}',
   data: 'Data',
   hours: '{n} h {m} min',
@@ -135,8 +135,8 @@ const en: Record<Key, string> = {
   humidity: 'Humidity',
   gusts: 'Gusts',
   pressure: 'Pressure',
-  high: 'H',
-  low: 'L',
+  high: 'High',
+  low: 'Low',
   next48: 'Next 48 hours',
   hoursOf: 'Hour by hour, {day}',
   forecast7: '7 days',
@@ -151,14 +151,14 @@ const en: Record<Key, string> = {
   precipChance: 'Chance of precipitation',
   maxWind: 'Max wind',
   map: 'Map',
-  mapHint: 'Click the map to see the weather there.',
+  mapHint: 'Tap the map to see the weather there.',
   radar: 'Rain radar',
   play: 'Play',
   pause: 'Pause',
   radarTime: 'Radar image {time}',
   radarFailed: 'Could not load the radar.',
   chartLabel: 'Temperature and precipitation by hour. Use the arrow keys to step.',
-  chartValue: '{time}: {temp}, {desc}, precipitation {precip}, chance {pop}%, wind {wind}',
+  chartValue: '{time}: {temp}, {desc}, precipitation {precip}, chance {pop}, wind {wind}',
   dayButton: '{day}: {desc}, {low} to {high}',
   data: 'Data',
   hours: '{n} h {m} min',
@@ -249,6 +249,20 @@ export function fmtClock(lang: Lang, date: Date): string {
   return new Intl.DateTimeFormat(LOCALE[lang], { hour: lang === 'sv' ? '2-digit' : 'numeric', minute: '2-digit', hour12: lang === 'en' }).format(date);
 }
 
+/** When something happened: "12:35" today, otherwise with the weekday ("ons 12:35" / "Wed 12:35"). */
+export function fmtStamp(lang: Lang, date: Date, now = new Date()): string {
+  const time = fmtClock(lang, date);
+  if (date.toDateString() === now.toDateString()) return time;
+  const wd = new Intl.DateTimeFormat(LOCALE[lang], { weekday: 'short' }).format(date).replace('.', '');
+  return `${wd} ${time}`;
+}
+
 export function compassLabel(lang: Lang, index: number): string {
   return translate(lang, 'compass').split(',')[index] ?? '';
+}
+
+/** Percentage: "61 %" in Swedish (with a no-break space), "61%" in English; "–" if unknown. */
+export function fmtPct(lang: Lang, v: number | null | undefined): string {
+  if (v == null || Number.isNaN(v)) return '–';
+  return lang === 'sv' ? `${Math.round(v)}\u00a0%` : `${Math.round(v)}%`;
 }

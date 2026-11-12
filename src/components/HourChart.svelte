@@ -1,12 +1,16 @@
 <script lang="ts">
   import { chartRange, type Forecast } from '../lib/api';
-  import { fmtDayLong, fmtDayShort, fmtHour, fmtTime } from '../lib/i18n';
+  import { fmtDayLong, fmtDayShort, fmtHour, fmtPct, fmtTime } from '../lib/i18n';
   import { convertTemp, fmtPrecip, fmtTemp, fmtWind } from '../lib/units';
   import { weatherInfo } from '../lib/weather';
   import { locale, settings, t } from '../lib/state.svelte';
   import WindArrow from './WindArrow.svelte';
 
-  let { forecast, day }: { forecast: Forecast; day: number } = $props();
+  let { forecast, day, today }: { forecast: Forecast; day: number; today: number } = $props();
+
+  const isToday = $derived(day <= today);
+  /** "Idag", "Imorgon", weekday, counted from today */
+  const dayName = (date: string) => fmtDayShort(settings.lang, date, forecast.daily.time.indexOf(date) - today);
 
   // geometry (px, in the SVG's own coordinates = CSS pixels)
   const H = 252;
@@ -59,7 +63,7 @@
     const date = h.time[i].slice(0, 10);
     const dayIndex = forecast.daily.time.indexOf(date);
     const time = fmtTime(settings.lang, h.time[i]);
-    return dayIndex === 0 && day === 0 && i === idxs[0] ? `${t('now')} · ${time}` : `${fmtDayShort(settings.lang, date, dayIndex)} ${time}`;
+    return dayIndex === today && isToday && i === idxs[0] ? `${t('now')} · ${time}` : `${dayName(date)} ${time}`;
   }
 
   const valueText = $derived(n ? t('chartValue', {
@@ -67,7 +71,7 @@
     temp: fmtTemp(h.temperature_2m[ci], u.temp),
     desc: t(cw.key as never),
     precip: fmtPrecip(h.precipitation[ci], u.precip, locale()),
-    pop: h.precipitation_probability[ci] ?? 0,
+    pop: fmtPct(settings.lang, h.precipitation_probability[ci]),
     wind: fmtWind(h.wind_speed_10m[ci], u.wind, locale()),
   }) : '');
 
@@ -101,14 +105,14 @@
   const tipLeft = $derived(Math.max(78, Math.min(W - 78, x(cur))));
 </script>
 
-<h2>{day === 0 ? t('next48') : t('hoursOf', { day: fmtDayLong(settings.lang, forecast.daily.time[day]) })}</h2>
+<h2>{isToday ? t('next48') : t('hoursOf', { day: fmtDayLong(settings.lang, forecast.daily.time[day]) })}</h2>
 
 <div class="wrap" bind:clientWidth={width}>
   <div class="tip" style="left:{tipLeft}px" aria-hidden="true">
     <div class="tip-time">{when(ci)}</div>
     <div class="tip-main"><span>{cw.icon}</span> <b>{fmtTemp(h.temperature_2m[ci], u.temp)}</b> <span class="tip-desc">{t(cw.key as never)}</span></div>
     <div class="tip-row">
-      <span class="rain">💧 {fmtPrecip(h.precipitation[ci], u.precip, locale())} · {h.precipitation_probability[ci] ?? 0}%</span>
+      <span class="rain">💧 {fmtPrecip(h.precipitation[ci], u.precip, locale())} · {fmtPct(settings.lang, h.precipitation_probability[ci])}</span>
       <span><WindArrow deg={h.wind_direction_10m[ci]} size={12} /> {fmtWind(h.wind_speed_10m[ci], u.wind, locale())}</span>
     </div>
   </div>
@@ -139,7 +143,7 @@
     <!-- day boundaries -->
     {#each midnights as m (m.i)}
       <line class="midnight" x1={x(m.j) - dx / 2} x2={x(m.j) - dx / 2} y1={ICON_Y + 14} y2={BASE_Y} />
-      <text class="dayname" x={x(m.j) - dx / 2 + 4} y={ICON_Y + 26}>{fmtDayShort(settings.lang, h.time[m.i].slice(0, 10), forecast.daily.time.indexOf(h.time[m.i].slice(0, 10)))}</text>
+      <text class="dayname" x={x(m.j) - dx / 2 + 4} y={ICON_Y + 26}>{dayName(h.time[m.i].slice(0, 10))}</text>
     {/each}
 
     <line class="base" x1={PAD} x2={W - PAD} y1={BASE_Y} y2={BASE_Y} />
@@ -167,7 +171,7 @@
       {#if j % k === 0}
         <text class="icon" x={x(j)} y={ICON_Y}>{weatherInfo(h.weather_code[i], h.is_day[i] === 1).icon}</text>
         <text class="tlabel" x={x(j)} y={yT(temps[j]) - 8}>{fmtTemp(h.temperature_2m[i], u.temp)}</text>
-        <text class="hour" x={x(j)} y={LABEL_Y}>{j === 0 && day === 0 ? t('now') : fmtHour(settings.lang, h.time[i])}</text>
+        <text class="hour" x={x(j)} y={LABEL_Y}>{j === 0 && isToday ? t('now') : fmtHour(settings.lang, h.time[i])}</text>
         <g transform="translate({x(j) - 6},{WIND_Y - 10}) rotate({h.wind_direction_10m[i] + 180} 6 6)">
           <path class="wind" d="M6 0 L10.5 11 L6 8.2 L1.5 11 Z" />
         </g>

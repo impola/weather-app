@@ -1,6 +1,6 @@
 <script lang="ts">
   import { searchPlaces, type Place } from '../lib/api';
-  import { isSaved, settings, t, tabs, toggleSaved } from '../lib/state.svelte';
+  import { isSaved, settings, t, toggleSaved } from '../lib/state.svelte';
 
   let { onshow, onlocate }: { onshow: (p: Place) => void; onlocate: () => void } = $props();
 
@@ -84,7 +84,8 @@
         enterkeyhint="search"
       />
       {#if open && results}
-        <ul class="results" bind:this={list}>
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions (keeps focus in the field while a result is pressed: Safari does not focus buttons) -->
+        <ul class="results" bind:this={list} onpointerdown={(e) => e.preventDefault()}>
           {#each results as r (r.id)}
             <li>
               <button type="button" class="pick" onclick={() => pick(r)}>
@@ -109,20 +110,6 @@
     <button class="icon-btn" aria-label={t('useLocation')} title={t('useLocation')} onclick={onlocate}>📍</button>
   </div>
 
-  {#if tabs().length > 1}
-    <nav class="tabs" aria-label={t('savedPlaces')}>
-      {#each tabs() as tab (tab.place.id)}
-        <button
-          class="tab"
-          class:active={tab.place.id === settings.active?.id}
-          aria-current={tab.place.id === settings.active?.id ? 'true' : undefined}
-          onclick={() => onshow(tab.place)}>
-          {#if tab.here}<span aria-label={t('myLocation')}>📍</span>{:else if isSaved(tab.place)}<span aria-hidden="true">★</span>{/if}
-          {tab.place.name}
-        </button>
-      {/each}
-    </nav>
-  {/if}
 </div>
 
 <style>
@@ -189,26 +176,4 @@
   .star:hover { background: var(--hover); }
   .none { padding: 10px 12px; color: var(--muted); }
 
-  .tabs {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab {
-    flex: none;
-    border: 1px solid var(--card-border);
-    background: var(--card);
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-size: 14px;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .tab:hover { background: var(--hover); }
-  .tab.active { background: var(--fg); color: #1e3a8a; border-color: var(--fg); font-weight: 600; }
-  :global(body.night) .tab.active { color: #0f172a; }
 </style>
