@@ -146,7 +146,7 @@ button { font: inherit; color: inherit; }
   gap: 14px;
   margin-top: 14px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "current" "chart" "days" "dayinfo" "now" "map";
+  grid-template-areas: "current" "chart" "days" "now" "map";
   /* let the page handle vertical scroll and pinch, and the app horizontal swipes */
   touch-action: pan-y pinch-zoom;
 }

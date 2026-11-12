@@ -1,0 +1,72 @@
+import { describe, expect, it } from 'vitest';
+import type { Forecast } from './api';
+import { restOfToday, summarize, wetPeriods } from './summary';
+import { METRIC } from './units';
+
+/** 48 hours from 2026-11-12 00:00; now is 10:00 */
+function make(over: Partial<Record<'precipitation' | 'temperature_2m' | 'wind_gusts_10m' | 'weather_code', (i: number) => number>> = {}): Forecast {
+  const n = 48;
+  const time = Array.from({ length: n }, (_, i) => `2026-11-${12 + Math.floor(i / 24)}T${String(i % 24).padStart(2, '0')}:00`);
+  const col = (k: keyof typeof over, d: number) => Array.from({ length: n }, (_, i) => over[k]?.(i) ?? d);
+  return {
+    timezone: 'Europe/Stockholm',
+    current: { time: '2026-11-12T10:00' },
+    hourly: {
+      time,
+      temperature_2m: col('temperature_2m', 5),
+      precipitation: col('precipitation', 0),
+      weather_code: col('weather_code', 3),
+      wind_gusts_10m: col('wind_gusts_10m', 6),
+      wind_speed_10m: time.map(() => 3),
+      precipitation_probability: time.map(() => 20),
+      is_day: time.map((t) => (Number(t.slice(11, 13)) >= 8 && Number(t.slice(11, 13)) < 16 ? 1 : 0)),
+    },
+    daily: { time: ['2026-11-12', '2026-11-13'] },
+  } as unknown as Forecast;
+}
+
+describe('summary', () => {
+  it('says when it stays dry', () => {
+    expect(summarize(make(), 'sv', METRIC)).toEqual(['Inget regn de närmaste 12 timmarna.']);
+    expect(summarize(make(), 'en', METRIC)).toEqual(['No rain in the next 12 hours.']);
+  });
+
+  it('describes a rain period with its heaviest hour', () => {
+    const f = make({ precipitation: (i) => (i >= 12 && i < 15 ? (i === 13 ? 4 : 1) : 0), weather_code: (i) => (i >= 12 && i < 15 ? 63 : 3) });
+    expect(summarize(f, 'sv', METRIC)[0]).toBe('Regn från ca 12 till 15, upp till 4 mm per timme.');
+    expect(wetPeriods(f, 10)).toEqual([{ start: 12, end: 15, max: 4, kind: 'rain' }]);
+  });
+
+  it('bridges a single dry hour and knows rain that goes on', () => {
+    const f = make({ precipitation: (i) => (i >= 10 && i !== 12 ? 0.5 : 0) });
+    expect(wetPeriods(f, 10)).toHaveLength(1);
+    expect(summarize(f, 'en', METRIC)[0]).toBe('Rain for the next 12 hours.');
+    const g = make({ precipitation: (i) => (i >= 10 && i < 13 ? 0.5 : 0) });
+    expect(summarize(g, 'sv', METRIC)[0]).toBe('Regn fram till ca 13.');
+    const s = make({ precipitation: (i) => (i >= 16 ? 0.6 : 0), weather_code: () => 73 });
+    expect(summarize(s, 'sv', METRIC)[0]).toBe('Snö från ca 16.');
+  });
+
+  it('mentions strong gusts and frost', () => {
+    const f = make({ wind_gusts_10m: (i) => (i === 18 ? 17 : 6), temperature_2m: (i) => 5 - Math.max(0, i - 10) * 0.6 });
+    const s = summarize(f, 'sv', METRIC);
+    expect(s).toContain('Byar upp till 17 m/s kring 18.');
+    expect(s).toContain('Minusgrader från ca 19, risk för halka.');
+  });
+
+  it('mentions a big temperature change', () => {
+    const f = make({ temperature_2m: (i) => (i < 10 ? 2 : 2 + (i - 10)) });
+    expect(summarize(f, 'sv', METRIC)).toContain('Upp mot 13° kring 21.');
+  });
+});
+
+describe('rest of today', () => {
+  it('counts from now to midnight', () => {
+    const f = make({ precipitation: (i) => (i < 10 ? 2 : i < 24 ? 0.5 : 9), weather_code: (i) => (i < 10 ? 65 : 61) });
+    const r = restOfToday(f, '2026-11-12T10:20');
+    expect([r.from, r.to]).toEqual([10, 24]);
+    expect(r.precip).toBeCloseTo(7);
+    expect(r.precipSoFar).toBeCloseTo(20);
+    expect(r.code).toBe(61);
+  });
+});

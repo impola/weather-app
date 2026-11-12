@@ -3,6 +3,7 @@
   import { fmtStamp } from '../lib/i18n';
   import { fmtTemp } from '../lib/units';
   import { weatherInfo } from '../lib/weather';
+  import { summarize } from '../lib/summary';
   import { isSaved, settings, t, toggleSaved } from '../lib/state.svelte';
   import StarIcon from '@lucide/svelte/icons/star';
   import WxIcon from './WxIcon.svelte';
@@ -14,6 +15,7 @@
   const w = $derived(weatherInfo(c.weather_code, c.is_day === 1));
   const u = $derived(settings.units);
   const saved = $derived(isSaved(place));
+  const summary = $derived(summarize(forecast, settings.lang, settings.units));
 </script>
 
 <div class="current">
@@ -38,6 +40,8 @@
     · {t('low')} {fmtTemp(forecast.daily.temperature_2m_min[today], u.temp)}
     · {t('feelsLike')} {fmtTemp(c.apparent_temperature, u.temp)}
   </p>
+
+  {#if summary.length}<p class="summary">{summary.join(' ')}</p>{/if}
 
   <p class="updated">
     {#if loading}<span class="dot" aria-hidden="true"></span>{/if}
@@ -66,6 +70,7 @@
   .temp { margin: 4px 0 0; font-size: 96px; font-weight: 200; line-height: 1; letter-spacing: -3px; padding-left: 0.12em; }
   .desc { margin: 2px 0 0; font-size: 19px; display: flex; justify-content: center; align-items: center; gap: 4px; }
   .range { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+  .summary { margin: 12px auto 0; max-width: 34em; font-size: 15px; line-height: 1.45; text-wrap: pretty; }
   .updated { margin: 10px 0 0; font-size: 12px; color: var(--muted); display: flex; justify-content: center; align-items: center; gap: 6px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite alternate; }
   @keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }

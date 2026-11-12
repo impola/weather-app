@@ -8,7 +8,8 @@
   import WindArrow from './WindArrow.svelte';
   import WxIcon, { wxUrl } from './WxIcon.svelte';
 
-  let { forecast, day, today }: { forecast: Forecast; day: number; today: number } = $props();
+  let { forecast, day, today, compact = false }: { forecast: Forecast; day: number; today: number; compact?: boolean } = $props();
+  const uid = $props.id();
 
   // geometry (px, in the SVG's own coordinates = CSS pixels)
   const PAD = 12;
@@ -41,10 +42,12 @@
   const ticks = $derived(idxs.map((i, j) => ({ i, j })).filter(({ i, j }) => j === 0 || (hourOf(i) % k === 0 && j >= k * 0.6)));
 
   const u = $derived(settings.units);
-  const temps = $derived(idxs.map((i) => convertTemp(h.temperature_2m[i], u.temp)));
+  const nowTemp = $derived(nowValues(forecast).temperature_2m);
+  /** °C per column; "now" uses the current conditions, like the top of the app */
+  const tC = $derived(idxs.map((i, j) => (j === 0 && isToday ? nowTemp : h.temperature_2m[i])));
+  const temps = $derived(tC.map((c) => convertTemp(c, u.temp)));
   const lo = $derived(Math.min(...temps) - 0.8);
   const hi = $derived(Math.max(...temps) + 0.8);
-  const tC = $derived(idxs.map((i) => h.temperature_2m[i])); // °C, for colours
   const precipScale = $derived(Math.max(2, ...idxs.map((i) => h.precipitation[i])));
 
   const x = (j: number) => PAD + (j + 0.5) * dx;
@@ -137,7 +140,7 @@
   const precipLabel = $derived(`${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(convertPrecip(precipScale, u.precip))} ${PRECIP_LABEL[u.precip]}`);
 </script>
 
-<h2>{isToday ? t(span === 24 ? 'next24' : 'next48') : t('hoursOf', { day: fmtDayLong(settings.lang, forecast.daily.time[day]) })}</h2>
+{#if !compact}<h2>{isToday ? t(span === 24 ? 'next24' : 'next48') : t('hoursOf', { day: fmtDayLong(settings.lang, forecast.daily.time[day]) })}</h2>{/if}
 
 <!-- the chosen hour (fixed height, so nothing jumps) -->
 <div class="info" aria-hidden="true">
@@ -170,11 +173,11 @@
     onpointercancel={up}
     onkeydown={key}>
     <defs>
-      <linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id="fill-{uid}" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="#fff" stop-opacity="0.18" />
         <stop offset="1" stop-color="#fff" stop-opacity="0" />
       </linearGradient>
-      <linearGradient id="tempLine" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={gradStops.y1} y2={gradStops.y2}>
+      <linearGradient id="line-{uid}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={gradStops.y1} y2={gradStops.y2}>
         {#each gradStops.stops as s (s.f)}<stop offset={s.f} stop-color={s.c} />{/each}
       </linearGradient>
     </defs>
@@ -186,10 +189,10 @@
     {/each}
 
     <!-- temperature -->
-    <path d={area} fill="url(#tempFill)" />
-    <path d={line} class="temp" stroke="url(#tempLine)" />
+    <path d={area} fill="url(#fill-{uid})" />
+    <path d={line} class="temp" stroke="url(#line-{uid})" />
     {#each tempLabels as l (l.j)}
-      <text class="tlabel" x={x(l.j)} y={l.up ? yT(temps[l.j]) - 9 : yT(temps[l.j]) + 18}>{fmtTemp(h.temperature_2m[idxs[l.j]], u.temp)}</text>
+      <text class="tlabel" x={x(l.j)} y={l.up ? yT(temps[l.j]) - 9 : yT(temps[l.j]) + 18}>{fmtTemp(tC[l.j], u.temp)}</text>
     {/each}
 
     <!-- precipitation: its own zone; bar height = amount, opacity = probability -->

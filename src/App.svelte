@@ -78,6 +78,15 @@
   const today = $derived(forecast ? todayIndex(forecast) : 0);
   const selDay = $derived(Math.max(day, today));
 
+  // phones open a day inside the day list; wide screens show it in the chart and detail cards
+  const wide = matchMedia('(min-width: 900px)');
+  let narrow = $state(!wide.matches);
+  onMount(() => {
+    const onChange = () => (narrow = !wide.matches);
+    wide.addEventListener('change', onChange);
+    return () => wide.removeEventListener('change', onChange);
+  });
+
   function show(place: Place) {
     settings.active = place;
     message = '';
@@ -180,9 +189,9 @@
     <main class="grid" onpointerdown={swipeStart} onpointerup={swipeEnd} onpointercancel={() => (swipe = null)}>
       <section class="current"><Current {forecast} place={settings.active} {fetchedAt} {loading} /></section>
       <section class="card now"><Details {forecast} /></section>
-      <section class="card chart no-swipe"><HourChart {forecast} day={selDay} {today} /></section>
-      <section class="card days"><DayList {forecast} day={selDay} {today} onselect={(d) => (day = d)} /></section>
-      <section class="card dayinfo"><DayDetail {forecast} day={selDay} {today} /></section>
+      <section class="card chart no-swipe"><HourChart {forecast} day={narrow ? today : selDay} {today} /></section>
+      <section class="card days"><DayList {forecast} day={selDay} {today} inline={narrow} onselect={(d) => (day = d)} /></section>
+      {#if !narrow}<section class="card dayinfo"><DayDetail {forecast} day={selDay} {today} /></section>{/if}
       <section class="card map no-swipe"><MapView place={settings.active} onpick={pickOnMap} /></section>
     </main>
     <p class="credit">
