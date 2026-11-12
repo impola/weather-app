@@ -1,7 +1,7 @@
 // A short text about the coming hours ("Rain from about 12 to 15, up to 4 mm an hour.
 // Gusts up to 16 m/s around 18."), and the numbers for the rest of today.
 // Rules only, no AI: the same data always gives the same text.
-import { currentHourIndex, placeNow, todayIndex, type Forecast } from './api';
+import { currentHourIndex, nowValues, placeNow, todayIndex, type Air, type Forecast } from './api';
 import { fmtHour, translate, LOCALE, type Lang } from './i18n';
 import { convertPrecip, fmtTemp, fmtWind, PRECIP_LABEL, type Units } from './units';
 
@@ -64,6 +64,13 @@ export function summarize(f: Forecast, lang: Lang, u: Units, now = placeNow(f)):
   const hour = (i: number) => fmtHour(lang, h.time[Math.min(i, h.time.length - 1)]);
   const out: string[] = [];
 
+  // compared with yesterday at this time
+  const dy = vsYesterday(f, now);
+  if (dy != null) {
+    const d = Math.round(Math.abs(u.temp === 'f' ? (dy * 9) / 5 : dy));
+    out.push(d < 1 ? tr('cmpSame') : tr(dy < 0 ? 'cmpColder' : 'cmpWarmer', { d }));
+  }
+
   // precipitation
   const periods = wetPeriods(f, i0, to - i0);
   if (!periods.length) {
@@ -105,7 +112,7 @@ export function summarize(f: Forecast, lang: Lang, u: Units, now = placeNow(f)):
     if (h.temperature_2m[hi] - t0 >= 4) out.push(tr('sumWarmer', { temp: fmtTemp(h.temperature_2m[hi], u.temp), time: hour(hi) }));
     else if (t0 - h.temperature_2m[lo] >= 4) out.push(tr('sumColder', { temp: fmtTemp(h.temperature_2m[lo], u.temp), time: hour(lo) }));
   }
-  return out.slice(0, 3);
+  return out.slice(0, 4);
 }
 
 export interface Rest {
@@ -182,3 +189,50 @@ export function nowcast(f: Forecast, now = placeNow(f)): Nowcast | null {
   const begin = wet.indexOf(true);
   return { steps, key: 'ncStarts', minutes: Math.max(5, minutesTo(steps[begin].time)), kind };
 }
+
+/** Temperature now minus the same hour yesterday (°C), or null without yesterday's data. */
+export function vsYesterday(f: Forecast, now = placeNow(f)): number | null {
+  const h = f.hourly;
+  const i = currentHourIndex(f, now);
+  const t = h.time[i];
+  if (!t) return null;
+  const y = new Date(Date.parse(`${t}:00Z`) - 24 * 3600e3).toISOString().slice(0, 16);
+  const j = h.time.indexOf(y);
+  if (j < 0) return null;
+  return nowValues(f, now).temperature_2m - h.temperature_2m[j];
+}
+
+/** Hours of a day when the UV index is 3 or more ("sun protection 11–15"), or null. */
+export function uvWindow(f: Forecast, day: number): { from: string; to: string } | null {
+  const uv = f.hourly.uv_index;
+  if (!uv) return null;
+  const date = f.daily.time[day];
+  const hours = f.hourly.time.map((t, i) => ({ t, i })).filter(({ t, i }) => t.startsWith(date) && uv[i] >= 3);
+  if (!hours.length) return null;
+  const last = hours[hours.length - 1].i;
+  return { from: hours[0].t, to: f.hourly.time[last + 1] ?? hours[hours.length - 1].t };
+}
+
+/** European AQI in words (key in i18n). */
+export function aqiLevel(aqi: number): string {
+  if (aqi < 20) return 'aqGood';
+  if (aqi < 40) return 'aqFair';
+  if (aqi < 60) return 'aqModerate';
+  if (aqi < 80) return 'aqPoor';
+  if (aqi < 100) return 'aqVeryPoor';
+  return 'aqExtreme';
+}
+
+export const POLLEN = ['birch', 'alder', 'grass', 'mugwort', 'ragweed'] as const;
+
+/** Pollen that is in the air (grains/m³), with a level; empty out of season. */
+export function pollenNow(air: Air): { kind: (typeof POLLEN)[number]; level: 'pLow' | 'pModerate' | 'pHigh' }[] {
+  const out: { kind: (typeof POLLEN)[number]; level: 'pLow' | 'pModerate' | 'pHigh' }[] = [];
+  for (const kind of POLLEN) {
+    const v = air[`${kind}_pollen` as keyof Air] as number | null | undefined;
+    if (v == null || v < 1) continue;
+    out.push({ kind, level: v < 10 ? 'pLow' : v < 50 ? 'pModerate' : 'pHigh' });
+  }
+  return out;
+}
+

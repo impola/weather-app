@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fetchAir, type Air } from './lib/api';
   import { fetchForecast, nowValues, placeId, placeName, todayIndex, type Forecast, type Place } from './lib/api';
   import { fmtStamp } from './lib/i18n';
   import { cacheForecast, cachedForecast, settings, t, tabs } from './lib/state.svelte';
@@ -89,6 +90,27 @@
   const warnings = $derived(settings.active && warningData && inSweden(settings.active.lat, settings.active.lon)
     ? warningsAt(warningData, settings.active.lat, settings.active.lon, settings.lang) : []);
   const nc = $derived(forecast ? nowcast(forecast) : null);
+
+  // air quality and pollen (Open-Meteo), kept 30 minutes per place
+  const airCache = new Map<string, { at: number; data: Air }>();
+  let air = $state<Air | null>(null);
+  $effect(() => {
+    const p = settings.active;
+    void fetchedAt;
+    if (!p) return;
+    const hit = airCache.get(p.id);
+    if (hit && Date.now() - hit.at < 30 * 60 * 1000) {
+      air = hit.data;
+      return;
+    }
+    air = null;
+    fetchAir(p.lat, p.lon)
+      .then((data) => {
+        airCache.set(p.id, { at: Date.now(), data });
+        if (settings.active?.id === p.id) air = data;
+      })
+      .catch((err) => console.warn('air', err));
+  });
 
   // the first day that is not in the past (an old offline copy can start yesterday)
   const today = $derived(forecast ? todayIndex(forecast) : 0);
@@ -209,7 +231,7 @@
           {#if nc}<div class="card"><Nowcast {nc} /></div>{/if}
         </section>
       {/if}
-      <section class="card now"><Details {forecast} /></section>
+      <section class="card now"><Details {forecast} {air} /></section>
       <section class="card chart no-swipe"><HourChart {forecast} day={narrow ? today : selDay} {today} /></section>
       <section class="card days"><DayList {forecast} day={selDay} {today} inline={narrow} onselect={(d) => (day = d)} /></section>
       {#if !narrow}<section class="card dayinfo"><DayDetail {forecast} day={selDay} {today} /></section>{/if}

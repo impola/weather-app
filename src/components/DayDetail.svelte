@@ -3,10 +3,10 @@
   import SunriseIcon from '@lucide/svelte/icons/sunrise';
   import SunsetIcon from '@lucide/svelte/icons/sunset';
   import type { Forecast } from '../lib/api';
-  import { compassLabel, fmtDayLong, fmtPct, fmtTime, parseLocal } from '../lib/i18n';
+  import { compassLabel, fmtDayLong, fmtHour, fmtPct, fmtTime, parseLocal } from '../lib/i18n';
   import { fmtPrecip, fmtWind } from '../lib/units';
   import { compassIndex, weatherInfo } from '../lib/weather';
-  import { restOfToday } from '../lib/summary';
+  import { restOfToday, uvWindow } from '../lib/summary';
   import { locale, settings, t } from '../lib/state.svelte';
   import WindArrow from './WindArrow.svelte';
 
@@ -27,6 +27,8 @@
     return t('hours', { n: Math.floor(min / 60), m: min % 60 });
   });
   const uv = $derived(d.uv_index_max[day]);
+  const uvHours = $derived(uvWindow(forecast, day));
+  const sun = $derived(d.sunshine_duration?.[day]);
   const uvLevel = $derived(uv == null ? '' : uv < 3 ? 'low' : uv < 6 ? 'mid' : uv < 8 ? 'high' : 'vhigh');
 </script>
 
@@ -48,8 +50,15 @@
     </dd>
   </div>
   <div><dt>{t('precipChance')}</dt><dd class="rain">{fmtPct(settings.lang, pop)}</dd></div>
-  <div><dt>{t('uvIndex')}</dt><dd><span class="uv {uvLevel}">{uv == null ? '–' : Math.round(uv)}</span></dd></div>
-  <div class="wide">
+  <div>
+    <dt>{t('uvIndex')}</dt>
+    <dd><span class="uv {uvLevel}">{uv == null ? '–' : Math.round(uv)}</span></dd>
+    {#if uvHours}<dd class="note">{t('uvProtect', { from: fmtHour(settings.lang, uvHours.from), to: fmtHour(settings.lang, uvHours.to) })}</dd>{/if}
+  </div>
+  {#if sun != null}
+    <div><dt>{t('sunshine')}</dt><dd>{new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(sun / 3600)} h</dd></div>
+  {/if}
+  <div class:wide={sun == null} class:wide2={sun != null}>
     <dt>{t('maxWind')}</dt>
     <dd>
       <WindArrow deg={d.wind_direction_10m_dominant[day]} />
@@ -65,10 +74,12 @@
   .rest { margin-left: 0.35em; }
   dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; margin: 0; }
   .wide { grid-column: 1 / -1; }
+  .wide2 { grid-column: span 2; }
   dt { font-size: 13px; color: var(--muted); }
   dd { margin: 3px 0 0; font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
   dd small { color: var(--muted); font-weight: 400; font-size: 13px; }
   .rain { color: var(--rain); }
+  .note { font-size: 13px; font-weight: 400; color: var(--muted); }
   .uv { display: inline-block; min-width: 28px; text-align: center; padding: 1px 8px; border-radius: 8px; color: #111; }
   .uv.low { background: #86efac; }
   .uv.mid { background: #fde047; }

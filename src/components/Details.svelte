@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { nowValues, type Forecast } from '../lib/api';
+  import { nowValues, type Air, type Forecast } from '../lib/api';
+  import { aqiLevel, pollenNow } from '../lib/summary';
+  import LeafIcon from '@lucide/svelte/icons/leaf';
+  import FlowerIcon from '@lucide/svelte/icons/flower-2';
   import { compassLabel, fmtPct } from '../lib/i18n';
   import { fmtPrecip, fmtWind, convertWind, WIND_LABEL } from '../lib/units';
   import { compassIndex } from '../lib/weather';
@@ -10,7 +13,8 @@
   import UmbrellaIcon from '@lucide/svelte/icons/umbrella';
   import WindArrow from './WindArrow.svelte';
 
-  let { forecast }: { forecast: Forecast } = $props();
+  let { forecast, air = null }: { forecast: Forecast; air?: Air | null } = $props();
+  const pollen = $derived(air ? pollenNow(air) : []);
 
   const c = $derived(nowValues(forecast));
   const u = $derived(settings.units);
@@ -39,6 +43,24 @@
     <dt><UmbrellaIcon size={16} /> {t('precipLastHour')}</dt>
     <dd>{fmtPrecip(c.precipitation, u.precip, locale())}</dd>
   </div>
+  {#if air?.european_aqi != null}
+    <div class="wide">
+      <dt><LeafIcon size={16} /> {t('airQuality')}</dt>
+      <dd>
+        <span class="aq {aqiLevel(air.european_aqi)}"></span>
+        {t(aqiLevel(air.european_aqi) as never)}
+        <span class="sub">EAQI {Math.round(air.european_aqi)}</span>
+      </dd>
+    </div>
+  {/if}
+  {#if pollen.length}
+    <div class="wide">
+      <dt><FlowerIcon size={16} /> {t('pollen')}</dt>
+      <dd class="pollen">
+        {#each pollen as p (p.kind)}<span>{t(`pollen_${p.kind}` as never)} <span class="sub">({t(p.level)})</span></span>{/each}
+      </dd>
+    </div>
+  {/if}
 </dl>
 
 <style>
@@ -47,4 +69,12 @@
   dt { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   dd { margin: 3px 0 0; font-size: 17px; font-weight: 500; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .sub { color: var(--muted); font-weight: 400; font-size: 15px; }
+  .aq { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .aqGood { background: #50f0e6; }
+  .aqFair { background: #50ccaa; }
+  .aqModerate { background: #f0e641; }
+  .aqPoor { background: #ff5050; }
+  .aqVeryPoor { background: #960032; }
+  .aqExtreme { background: #7d2181; }
+  .pollen { gap: 4px 14px; }
 </style>

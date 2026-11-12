@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Forecast } from './api';
-import { nowcast, restOfToday, summarize, wetPeriods } from './summary';
+import { aqiLevel, nowcast, pollenNow, restOfToday, summarize, uvWindow, vsYesterday, wetPeriods } from './summary';
+import type { Air } from './api';
 import { METRIC } from './units';
 
 /** 48 hours from 2026-11-12 00:00; now is 10:00 */
@@ -96,5 +97,31 @@ describe('nowcast', () => {
 
   it('says nothing from an old copy', () => {
     expect(nowcast(withQuarters([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4]), '2026-11-12T13:00')).toBeNull();
+  });
+});
+
+describe('yesterday, UV, air', () => {
+  it('compares with the same hour yesterday', () => {
+    // now is 2026-11-13 10:00 (index 34); yesterday 10:00 is index 10
+    const f = make({ temperature_2m: (i) => (i === 10 ? 8 : 5) });
+    (f as unknown as { current: { time: string; temperature_2m: number } }).current = { time: '2026-11-13T10:00', temperature_2m: 5 } as never;
+    expect(vsYesterday(f, '2026-11-13T10:20')).toBe(-3);
+    expect(summarize(f, 'sv', METRIC, '2026-11-13T10:20')[0]).toBe('3° kallare än igår.');
+    expect(vsYesterday(make(), '2026-11-12T10:20')).toBeNull(); // no data from yesterday
+  });
+
+  it('finds the hours that need sun protection', () => {
+    const f = make();
+    (f.hourly as unknown as { uv_index: number[] }).uv_index = f.hourly.time.map((_, i) => (i >= 11 && i <= 14 ? 4 : 1));
+    expect(uvWindow(f, 0)).toEqual({ from: '2026-11-12T11:00', to: '2026-11-12T15:00' });
+    expect(uvWindow(f, 1)).toBeNull();
+  });
+
+  it('names air quality and pollen levels', () => {
+    expect([10, 25, 45, 70, 90, 120].map(aqiLevel)).toEqual(['aqGood', 'aqFair', 'aqModerate', 'aqPoor', 'aqVeryPoor', 'aqExtreme']);
+    expect(pollenNow({ european_aqi: 20, pm2_5: 1, pm10: 1, birch_pollen: 60, grass_pollen: 0.2, alder_pollen: 5 } as Air)).toEqual([
+      { kind: 'birch', level: 'pHigh' },
+      { kind: 'alder', level: 'pLow' },
+    ]);
   });
 });

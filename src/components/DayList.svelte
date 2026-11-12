@@ -63,7 +63,7 @@
   }
 </script>
 
-<h2>{t('forecast7')}</h2>
+<h2>{t('forecastN', { n: days.length })}</h2>
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions (arrow keys move between the days) -->
 <ul class="days" onkeydown={onKey} bind:this={list}>
   {#each days as i (d.time[i])}

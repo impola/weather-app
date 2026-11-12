@@ -50,6 +50,7 @@ export interface Forecast {
     wind_gusts_10m: number[];
     wind_direction_10m: number[];
     is_day: number[];
+    uv_index?: number[];
   };
   /** precipitation in 15-minute steps for the next two hours */
   minutely_15?: {
@@ -69,6 +70,7 @@ export interface Forecast {
     sunrise: string[];
     sunset: string[];
     uv_index_max: (number | null)[];
+    sunshine_duration?: number[]; // seconds
   };
 }
 
@@ -83,13 +85,14 @@ export function forecastUrl(lat: number, lon: number): string {
     latitude: String(lat),
     longitude: String(lon),
     current: 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,precipitation,pressure_msl',
-    hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,pressure_msl,weather_code,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day',
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max',
+    hourly: 'temperature_2m,apparent_temperature,relative_humidity_2m,pressure_msl,weather_code,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,uv_index',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max,sunshine_duration',
     minutely_15: 'precipitation',
     forecast_minutely_15: '9',
     wind_speed_unit: 'ms',
     timezone: 'auto',
-    forecast_days: '7',
+    past_days: '1', // yesterday, to compare with
+    forecast_days: '10',
   });
   return `${FORECAST_URL}?${params}`;
 }
@@ -213,4 +216,29 @@ export function nowValues(f: Forecast, now = placeNow(f)): NowValues {
     precipitation: h.precipitation[i],
     pressure_msl: h.pressure_msl?.[i] ?? f.current.pressure_msl,
   };
+}
+
+const AIR_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+
+export interface Air {
+  european_aqi: number | null;
+  pm2_5: number | null;
+  pm10: number | null;
+  birch_pollen?: number | null;
+  alder_pollen?: number | null;
+  grass_pollen?: number | null;
+  mugwort_pollen?: number | null;
+  ragweed_pollen?: number | null;
+}
+
+/** Air quality (European AQI) and pollen (Europe, in season) at a point now. */
+export async function fetchAir(lat: number, lon: number, signal?: AbortSignal): Promise<Air> {
+  const params = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    current: 'european_aqi,pm2_5,pm10,birch_pollen,alder_pollen,grass_pollen,mugwort_pollen,ragweed_pollen',
+    timezone: 'auto',
+  });
+  const data = await getJSON<{ current: Air }>(`${AIR_URL}?${params}`, signal);
+  return data.current;
 }
