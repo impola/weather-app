@@ -12,6 +12,8 @@ export interface Place {
   name: string;
   /** region / country, shown in smaller text */
   detail?: string;
+  /** ISO country code, when known (search results) */
+  cc?: string;
   lat: number;
   lon: number;
 }
@@ -114,6 +116,13 @@ interface GeoResult {
   longitude: number;
   admin1?: string;
   country?: string;
+  country_code?: string;
+}
+
+/** Search results with places in `prefer` (a country code) first, otherwise in the API's order. */
+export function preferCountry(list: Place[], prefer?: string): Place[] {
+  if (!prefer) return list;
+  return [...list.filter((p) => p.cc === prefer), ...list.filter((p) => p.cc !== prefer)];
 }
 
 export async function searchPlaces(query: string, lang: Lang, signal?: AbortSignal): Promise<Place[]> {
@@ -123,6 +132,7 @@ export async function searchPlaces(query: string, lang: Lang, signal?: AbortSign
     id: placeId(r.latitude, r.longitude),
     name: r.name,
     detail: [r.admin1, r.country].filter((x) => x && x !== r.name).join(', ') || undefined,
+    cc: r.country_code,
     lat: r.latitude,
     lon: r.longitude,
   }));

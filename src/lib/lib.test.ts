@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DICTS, detectLang, fmtDayLong, fmtDayShort, fmtHour, fmtPct, fmtTime, parseLocal, translate, compassLabel } from './i18n';
+import { DICTS, detectLang, fmtDayLong, fmtDayShort, fmtHour, fmtPct, fmtStamp, fmtTime, parseLocal, translate, compassLabel } from './i18n';
 import { convertPrecip, convertTemp, convertWind, defaultUnits, fmtPrecip, fmtTemp, fmtWind } from './units';
 import { WMO_ICONS, WMO_KEYS, compassIndex, skyFor, tempColor, tempGradient, weatherInfo } from './weather';
 import { chartRange, currentHourIndex, nowValues, placeId, placeNow, todayIndex, type Forecast } from './api';
@@ -48,6 +48,16 @@ describe('i18n', () => {
     expect(compassLabel('en', compassIndex(225))).toBe('SW');
     expect(compassIndex(359)).toBe(0);
     expect(compassIndex(-45)).toBe(7);
+  });
+});
+
+describe('time stamps', () => {
+  it('shows the time, the weekday, or the date', () => {
+    const now = new Date(2026, 10, 12, 13, 0);
+    expect(fmtStamp('sv', new Date(2026, 10, 12, 9, 5), now)).toBe('09:05');
+    expect(fmtStamp('sv', new Date(2026, 10, 13, 23, 0), now)).toBe('fre 23:00');
+    expect(fmtStamp('sv', new Date(2026, 3, 20, 0, 0), now)).toBe('20 apr');
+    expect(fmtStamp('en', new Date(2026, 3, 20, 0, 0), now)).toBe('20 Apr');
   });
 });
 

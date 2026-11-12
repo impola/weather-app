@@ -4,11 +4,23 @@
   import { fmtTemp } from '../lib/units';
   import { weatherInfo } from '../lib/weather';
   import { summarize } from '../lib/summary';
-  import { isSaved, settings, t, toggleSaved } from '../lib/state.svelte';
+  import { isSaved, settings, t, tabs, toggleSaved } from '../lib/state.svelte';
+  import RefreshIcon from '@lucide/svelte/icons/refresh-cw';
+  import MapPinIcon from '@lucide/svelte/icons/map-pin';
   import StarIcon from '@lucide/svelte/icons/star';
   import WxIcon from './WxIcon.svelte';
 
-  let { forecast, place, fetchedAt, loading }: { forecast: Forecast; place: Place; fetchedAt: number; loading: boolean } = $props();
+  let {
+    forecast,
+    place,
+    fetchedAt,
+    loading,
+    onrefresh,
+    onshow,
+  }: { forecast: Forecast; place: Place; fetchedAt: number; loading: boolean; onrefresh: () => void; onshow: (p: Place) => void } = $props();
+
+  const pages = $derived(tabs());
+  const pageIndex = $derived(pages.findIndex((x) => x.place.id === place.id));
 
   const c = $derived(nowValues(forecast));
   const today = $derived(todayIndex(forecast));
@@ -32,6 +44,15 @@
     </button>
   </div>
   {#if place.detail}<p class="detail">{place.detail}</p>{/if}
+  {#if pages.length > 1}
+    <div class="dots" role="group" aria-label={t('page', { n: pageIndex + 1, total: pages.length })}>
+      {#each pages as pg, i (pg.place.id)}
+        <button class="dot-btn" class:on={i === pageIndex} aria-label={pg.place.name} aria-current={i === pageIndex ? 'true' : undefined} onclick={() => onshow(pg.place)}>
+          {#if pg.here}<MapPinIcon size={10} strokeWidth={3} />{:else}<span class="dot-mark"></span>{/if}
+        </button>
+      {/each}
+    </div>
+  {/if}
 
   <p class="temp">{fmtTemp(c.temperature_2m, u.temp)}</p>
   <p class="desc"><WxIcon name={w.icon} size={36} /> {t(w.key as never)}</p>
@@ -43,10 +64,10 @@
 
   {#if summary.length}<p class="summary">{summary.join(' ')}</p>{/if}
 
-  <p class="updated">
-    {#if loading}<span class="dot" aria-hidden="true"></span>{/if}
+  <button class="updated" onclick={onrefresh} title={t('refresh')} disabled={loading}>
+    <span class="spin" class:busy={loading}><RefreshIcon size={13} /></span>
     {t('updated', { time: fmtStamp(settings.lang, new Date(fetchedAt)) })}
-  </p>
+  </button>
 </div>
 
 <style>
@@ -71,7 +92,27 @@
   .desc { margin: 2px 0 0; font-size: 19px; display: flex; justify-content: center; align-items: center; gap: 4px; }
   .range { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
   .summary { margin: 12px auto 0; max-width: 34em; font-size: 15px; line-height: 1.45; text-wrap: pretty; }
-  .updated { margin: 10px 0 0; font-size: 12px; color: var(--muted); display: flex; justify-content: center; align-items: center; gap: 6px; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite alternate; }
-  @keyframes pulse { from { opacity: 0.3; } to { opacity: 1; } }
+  .updated {
+    margin: 8px auto 0;
+    font-size: 12px;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: none;
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .updated:hover { background: var(--hover); color: var(--fg); }
+  .updated:disabled { cursor: default; }
+  .spin { display: grid; }
+  .spin.busy { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .dots { display: flex; justify-content: center; gap: 2px; margin-top: 6px; }
+  .dot-btn { border: 0; background: none; width: 20px; height: 20px; display: grid; place-items: center; cursor: pointer; color: var(--faint); padding: 0; }
+  .dot-btn.on { color: var(--fg); }
+  .dot-mark { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  @media (min-width: 900px) { .dots { display: none; } }
 </style>

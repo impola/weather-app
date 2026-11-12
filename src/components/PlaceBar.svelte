@@ -2,8 +2,8 @@
   import SearchIcon from '@lucide/svelte/icons/search';
   import StarIcon from '@lucide/svelte/icons/star';
   import LocateIcon from '@lucide/svelte/icons/locate-fixed';
-  import { searchPlaces, type Place } from '../lib/api';
-  import { isSaved, settings, t, toggleSaved } from '../lib/state.svelte';
+  import { preferCountry, searchPlaces, type Place } from '../lib/api';
+  import { addRecent, isSaved, settings, t, toggleSaved } from '../lib/state.svelte';
 
   let { onshow, onlocate }: { onshow: (p: Place) => void; onlocate: () => void } = $props();
 
@@ -14,6 +14,8 @@
   let controller: AbortController | null = null;
   let input: HTMLInputElement;
   let list = $state<HTMLUListElement>();
+  /** recently picked places (not saved ones), shown when the field is empty */
+  const recent = $derived(settings.recent.filter((r) => !isSaved(r)).slice(0, 5));
 
   async function search(q: string) {
     controller?.abort();
@@ -23,7 +25,9 @@
     }
     controller = new AbortController();
     try {
-      results = await searchPlaces(q, settings.lang, controller.signal);
+      // places in the user's own country first ("Malmö" before "Malmo, Nebraska")
+      const home = settings.here?.cc ?? settings.places.find((x) => x.cc)?.cc ?? (settings.lang === 'sv' ? 'SE' : undefined);
+      results = preferCountry(await searchPlaces(q, settings.lang, controller.signal), home);
       open = true;
     } catch (err) {
       if ((err as Error).name !== 'AbortError') console.warn(err);
@@ -32,6 +36,7 @@
 
   function onInput() {
     clearTimeout(timer);
+    if (!query.trim()) results = null;
     timer = setTimeout(() => search(query), 250);
   }
 
@@ -43,6 +48,7 @@
   }
 
   function pick(p: Place) {
+    if (!isSaved(p)) addRecent(p);
     onshow(p);
     query = '';
     results = null;
@@ -79,17 +85,18 @@
         bind:this={input}
         bind:value={query}
         oninput={onInput}
-        onfocus={() => results && (open = true)}
+        onfocus={() => (open = true)}
         type="search"
         placeholder={t('search')}
         aria-label={t('searchLabel')}
         autocomplete="off"
         enterkeyhint="search"
       />
-      {#if open && results}
+      {#if open && (results || (!query.trim() && recent.length))}
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions (keeps focus in the field while a result is pressed: Safari does not focus buttons) -->
         <ul class="results" bind:this={list} onpointerdown={(e) => e.preventDefault()}>
-          {#each results as r (r.id)}
+          {#if !results}<li class="label">{t('recentSearches')}</li>{/if}
+          {#each results ?? recent as r (r.id)}
             <li>
               <button type="button" class="pick" onclick={() => pick(r)}>
                 <span class="name">{r.name}</span>
@@ -178,5 +185,7 @@
   .star.on { color: var(--accent); }
   .star:hover { background: var(--hover); }
   .none { padding: 10px 12px; color: var(--muted); }
+  .label { padding: 6px 12px 2px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .results li.label:hover { background: none; }
 
 </style>

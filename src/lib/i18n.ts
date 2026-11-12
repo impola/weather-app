@@ -89,6 +89,21 @@ const sv = {
   kind_sleet: 'Underkylt regn',
   restOfDay: 'Resten av dagen',
   ncTitle: 'Närmaste 2 timmarna',
+  savedToast: '{name} sparad',
+  removedToast: '{name} borttagen',
+  recentSearches: 'Senaste',
+  refresh: 'Uppdatera',
+  pullRefresh: 'Släpp för att uppdatera',
+  newVersion: 'En ny version finns.',
+  update: 'Uppdatera',
+  welcomeTitle: 'Välkommen till Väder',
+  welcomeText: 'Se vädret där du är, eller sök efter en ort.',
+  welcomeLocate: 'Använd min plats',
+  welcomeSearch: 'Sök ort',
+  welcomeHint: 'Om platsen inte fungerar på iPhone: Inställningar › Integritet och säkerhet › Platstjänster › Safari-webbplatser › När appen används.',
+  offline: 'Ingen internetanslutning. Vädret hämtas när du är online igen.',
+  page: 'Plats {n} av {total}',
+  shortcuts: 'Kortkommandon: / sök, 1–9 platser, ← → dagar',
   cmpColder: '{d}° kallare än igår.',
   cmpWarmer: '{d}° varmare än igår.',
   cmpSame: 'Ungefär som igår.',
@@ -245,6 +260,21 @@ const en: Record<Key, string> = {
   kind_sleet: 'Freezing rain',
   restOfDay: 'Rest of the day',
   ncTitle: 'Next 2 hours',
+  savedToast: '{name} saved',
+  removedToast: '{name} removed',
+  recentSearches: 'Recent',
+  refresh: 'Refresh',
+  pullRefresh: 'Release to refresh',
+  newVersion: 'A new version is available.',
+  update: 'Update',
+  welcomeTitle: 'Welcome to Weather',
+  welcomeText: 'See the weather where you are, or search for a place.',
+  welcomeLocate: 'Use my location',
+  welcomeSearch: 'Search place',
+  welcomeHint: 'If location does not work on iPhone: Settings › Privacy & Security › Location Services › Safari Websites › While Using the App.',
+  offline: 'No internet connection. The weather will load when you are back online.',
+  page: 'Place {n} of {total}',
+  shortcuts: 'Shortcuts: / search, 1–9 places, ← → days',
   cmpColder: '{d}° colder than yesterday.',
   cmpWarmer: '{d}° warmer than yesterday.',
   cmpSame: 'About the same as yesterday.',
@@ -376,10 +406,14 @@ export function fmtClock(lang: Lang, date: Date): string {
   return new Intl.DateTimeFormat(LOCALE[lang], { hour: lang === 'sv' ? '2-digit' : 'numeric', minute: '2-digit', hour12: lang === 'en' }).format(date);
 }
 
-/** When something happened: "12:35" today, otherwise with the weekday ("ons 12:35" / "Wed 12:35"). */
+/** When something happens: "12:35" today, "ons 12:35" within a week, else "20 apr". */
 export function fmtStamp(lang: Lang, date: Date, now = new Date()): string {
   const time = fmtClock(lang, date);
   if (date.toDateString() === now.toDateString()) return time;
+  // more than six days away: the date ("20 apr"), a weekday would be ambiguous
+  if (Math.abs(date.getTime() - now.getTime()) > 6 * 24 * 3600e3) {
+    return new Intl.DateTimeFormat(LOCALE[lang], { day: 'numeric', month: 'short' }).format(date).replace('.', '');
+  }
   const wd = new Intl.DateTimeFormat(LOCALE[lang], { weekday: 'short' }).format(date).replace('.', '');
   return `${wd} ${time}`;
 }

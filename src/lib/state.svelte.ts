@@ -27,6 +27,8 @@ export const settings = $state({
   places: load<Place[]>('places', []),
   /** where the user is (from the location service), if known */
   here: load<Place | null>('here', null),
+  /** places picked from search lately (newest first) */
+  recent: load<Place[]>('recent', []),
   /** the place shown now: saved, here, or a search / map result not saved (kept only for this visit) */
   active: load<Place | null>('active', null),
 });
@@ -38,6 +40,7 @@ export function persistSettings(): void {
     $effect(() => save('units', $state.snapshot(settings.units)));
     $effect(() => save('places', $state.snapshot(settings.places)));
     $effect(() => save('here', $state.snapshot(settings.here)));
+    $effect(() => save('recent', $state.snapshot(settings.recent)));
     // a place from a search or a map tap is not remembered after the app is closed
     $effect(() => {
       const a = settings.active;
@@ -70,8 +73,26 @@ export function isSaved(place: Place | null): boolean {
 }
 
 export function toggleSaved(place: Place): void {
-  if (isSaved(place)) settings.places = settings.places.filter((p) => p.id !== place.id);
-  else settings.places = [...settings.places, { ...place }];
+  if (isSaved(place)) {
+    settings.places = settings.places.filter((p) => p.id !== place.id);
+    toast(t('removedToast', { name: place.name }));
+  } else {
+    settings.places = [...settings.places, { ...place }];
+    toast(t('savedToast', { name: place.name }));
+  }
+}
+
+export function addRecent(place: Place): void {
+  settings.recent = [{ ...place }, ...settings.recent.filter((p) => p.id !== place.id)].slice(0, 6);
+}
+
+/** A short message at the bottom of the screen ("Malmö saved"). */
+export const ui = $state({ toast: '' });
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+export function toast(text: string): void {
+  ui.toast = text;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (ui.toast = ''), 2400);
 }
 
 export function movePlace(id: string, delta: number): void {

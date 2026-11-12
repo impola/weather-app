@@ -8,7 +8,9 @@ export default defineConfig({
   plugins: [
     svelte(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // ask before switching to a new version (the app shows a notice); old files stay
+      // cached until then, so lazily loaded parts never go missing after a deploy
+      registerType: 'prompt',
       includeAssets: ['icons/icon-180.png'],
       manifest: {
         name: 'Väder',
@@ -28,6 +30,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg}'],
+        globIgnores: ['splash/**'], // iOS fetches these itself, only when launching
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.hostname.endsWith('tile.openstreetmap.org'),
