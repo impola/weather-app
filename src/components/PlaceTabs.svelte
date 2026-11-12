@@ -1,4 +1,6 @@
 <script lang="ts">
+  import MapPinIcon from '@lucide/svelte/icons/map-pin';
+  import StarIcon from '@lucide/svelte/icons/star';
   import type { Place } from '../lib/api';
   import { isSaved, settings, t, tabs } from '../lib/state.svelte';
 
@@ -24,8 +26,8 @@
         class:active={tab.place.id === settings.active?.id}
         aria-current={tab.place.id === settings.active?.id ? 'true' : undefined}
         onclick={() => onshow(tab.place)}>
-        {#if tab.here}<span aria-hidden="true">📍</span><span class="visually-hidden">{t('myLocation')}:</span>
-        {:else if isSaved(tab.place)}<span aria-hidden="true">★</span>{/if}
+        {#if tab.here}<MapPinIcon size={14} aria-hidden="true" /><span class="visually-hidden">{t('myLocation')}:</span>
+        {:else if isSaved(tab.place)}<StarIcon size={13} fill="currentColor" aria-hidden="true" />{/if}
         {tab.place.name}
       </button>
     {/each}
@@ -56,6 +58,9 @@
     font-size: 14px;
     cursor: pointer;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
   .tab:hover { background: var(--hover); }
   .tab.active { background: var(--fg); color: #1e3a8a; border-color: var(--fg); font-weight: 600; }

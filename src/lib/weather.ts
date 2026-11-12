@@ -1,4 +1,5 @@
-// WMO weather codes (as used by Open-Meteo) -> text key in i18n + day / night icon.
+// WMO weather codes (as used by Open-Meteo) -> text key in i18n + day / night icon
+// (Meteocons file names in src/assets/wx/).
 
 export interface WeatherInfo {
   key: string;
@@ -6,43 +7,64 @@ export interface WeatherInfo {
 }
 
 const WMO: Record<number, [key: string, day: string, night: string]> = {
-  0: ['clear', '☀️', '🌙'],
-  1: ['mostlyClear', '🌤️', '🌙'],
-  2: ['partlyCloudy', '⛅', '☁️'],
-  3: ['overcast', '☁️', '☁️'],
-  45: ['fog', '🌫️', '🌫️'],
-  48: ['freezingFog', '🌫️', '🌫️'],
-  51: ['lightDrizzle', '🌦️', '🌧️'],
-  53: ['drizzle', '🌦️', '🌧️'],
-  55: ['heavyDrizzle', '🌧️', '🌧️'],
-  56: ['freezingDrizzle', '🌧️', '🌧️'],
-  57: ['freezingDrizzle', '🌧️', '🌧️'],
-  61: ['lightRain', '🌦️', '🌧️'],
-  63: ['rain', '🌧️', '🌧️'],
-  65: ['heavyRain', '🌧️', '🌧️'],
-  66: ['freezingRain', '🌧️', '🌧️'],
-  67: ['freezingRain', '🌧️', '🌧️'],
-  71: ['lightSnow', '🌨️', '🌨️'],
-  73: ['snow', '🌨️', '🌨️'],
-  75: ['heavySnow', '❄️', '❄️'],
-  77: ['snowGrains', '🌨️', '🌨️'],
-  80: ['lightShowers', '🌦️', '🌧️'],
-  81: ['showers', '🌧️', '🌧️'],
-  82: ['violentShowers', '⛈️', '⛈️'],
-  85: ['snowShowers', '🌨️', '🌨️'],
-  86: ['heavySnowShowers', '❄️', '❄️'],
-  95: ['thunderstorm', '⛈️', '⛈️'],
-  96: ['thunderstormHail', '⛈️', '⛈️'],
-  99: ['thunderstormHail', '⛈️', '⛈️'],
+  0: ['clear', 'clear-day', 'clear-night'],
+  1: ['mostlyClear', 'partly-cloudy-day', 'partly-cloudy-night'],
+  2: ['partlyCloudy', 'overcast-day', 'overcast-night'],
+  3: ['overcast', 'overcast', 'overcast'],
+  45: ['fog', 'fog-day', 'fog-night'],
+  48: ['freezingFog', 'fog', 'fog'],
+  51: ['lightDrizzle', 'partly-cloudy-day-drizzle', 'partly-cloudy-night-drizzle'],
+  53: ['drizzle', 'drizzle', 'drizzle'],
+  55: ['heavyDrizzle', 'drizzle', 'drizzle'],
+  56: ['freezingDrizzle', 'sleet', 'sleet'],
+  57: ['freezingDrizzle', 'sleet', 'sleet'],
+  61: ['lightRain', 'partly-cloudy-day-rain', 'partly-cloudy-night-rain'],
+  63: ['rain', 'rain', 'rain'],
+  65: ['heavyRain', 'rain', 'rain'],
+  66: ['freezingRain', 'sleet', 'sleet'],
+  67: ['freezingRain', 'sleet', 'sleet'],
+  71: ['lightSnow', 'partly-cloudy-day-snow', 'partly-cloudy-night-snow'],
+  73: ['snow', 'snow', 'snow'],
+  75: ['heavySnow', 'snow', 'snow'],
+  77: ['snowGrains', 'snow', 'snow'],
+  80: ['lightShowers', 'partly-cloudy-day-rain', 'partly-cloudy-night-rain'],
+  81: ['showers', 'rain', 'rain'],
+  82: ['violentShowers', 'rain', 'rain'],
+  85: ['snowShowers', 'partly-cloudy-day-snow', 'partly-cloudy-night-snow'],
+  86: ['heavySnowShowers', 'snow', 'snow'],
+  95: ['thunderstorm', 'thunderstorms-day', 'thunderstorms-night'],
+  96: ['thunderstormHail', 'hail', 'hail'],
+  99: ['thunderstormHail', 'hail', 'hail'],
 };
 
 export const WMO_KEYS = [...new Set(Object.values(WMO).map(([k]) => k)), 'unknown'];
+export const WMO_ICONS = [...new Set(Object.values(WMO).flatMap(([, d, n]) => [d, n])), 'not-available'];
 
 export function weatherInfo(code: number, isDay = true): WeatherInfo {
   const entry = WMO[code];
-  if (!entry) return { key: 'unknown', icon: '🌡️' };
+  if (!entry) return { key: 'unknown', icon: 'not-available' };
   return { key: entry[0], icon: isDay ? entry[1] : entry[2] };
 }
+
+export type Sky = 'clear' | 'cloudy' | 'rain' | 'snow' | 'night';
+
+/** Background theme for the weather now. */
+export function skyFor(code: number, isDay: boolean): Sky {
+  if (!isDay) return 'night';
+  if (code <= 1) return 'clear';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+  if (code >= 51) return 'rain';
+  return 'cloudy';
+}
+
+/** Top colour of each theme (for the browser / iOS status bar). */
+export const SKY_TOP: Record<Sky, string> = {
+  clear: '#1f6fd1',
+  cloudy: '#4b6078',
+  rain: '#3d5470',
+  snow: '#6b7f96',
+  night: '#1e293b',
+};
 
 /** Compass direction index 0..7 (N, NE, E, SE, S, SW, W, NW) for a direction in degrees. */
 export function compassIndex(deg: number): number {

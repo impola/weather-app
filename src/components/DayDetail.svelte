@@ -1,4 +1,7 @@
 <script lang="ts">
+  import WxIcon from './WxIcon.svelte';
+  import SunriseIcon from '@lucide/svelte/icons/sunrise';
+  import SunsetIcon from '@lucide/svelte/icons/sunset';
   import type { Forecast } from '../lib/api';
   import { compassLabel, fmtDayLong, fmtPct, fmtTime, parseLocal } from '../lib/i18n';
   import { fmtPrecip, fmtWind } from '../lib/units';
@@ -21,11 +24,11 @@
 </script>
 
 <h2>{fmtDayLong(settings.lang, d.time[day])}</h2>
-<p class="summary"><span aria-hidden="true">{w.icon}</span> {t(w.key as never)}</p>
+<p class="summary"><WxIcon name={w.icon} size={36} /> {t(w.key as never)}</p>
 
 <dl>
-  <div><dt>{t('sunrise')}</dt><dd>🌅 {fmtTime(settings.lang, d.sunrise[day])}</dd></div>
-  <div><dt>{t('sunset')}</dt><dd>🌇 {fmtTime(settings.lang, d.sunset[day])}</dd></div>
+  <div><dt>{t('sunrise')}</dt><dd><SunriseIcon size={18} /> {fmtTime(settings.lang, d.sunrise[day])}</dd></div>
+  <div><dt>{t('sunset')}</dt><dd><SunsetIcon size={18} /> {fmtTime(settings.lang, d.sunset[day])}</dd></div>
   <div><dt>{t('daylight')}</dt><dd>{daylight}</dd></div>
   <div><dt>{t('precipSum')}</dt><dd class="rain">{fmtPrecip(d.precipitation_sum[day], u.precip, locale())}</dd></div>
   <div><dt>{t('precipChance')}</dt><dd class="rain">{fmtPct(settings.lang, d.precipitation_probability_max[day])}</dd></div>
@@ -41,12 +44,12 @@
 </dl>
 
 <style>
-  .summary { margin: -4px 0 12px; font-size: 17px; }
+  .summary { margin: -4px 0 12px; font-size: 17px; display: flex; align-items: center; gap: 6px; }
   dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; margin: 0; }
   .wide { grid-column: 1 / -1; }
-  dt { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  dt { font-size: 13px; color: var(--muted); }
   dd { margin: 3px 0 0; font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-  dd small { color: var(--muted); font-weight: 400; font-size: 13px; }
+  dd small { color: var(--muted); font-weight: 400; font-size: 14px; }
   .rain { color: var(--rain); }
   .uv { display: inline-block; min-width: 28px; text-align: center; padding: 1px 8px; border-radius: 8px; color: #111; }
   .uv.low { background: #86efac; }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DICTS, detectLang, fmtDayLong, fmtDayShort, fmtHour, fmtPct, fmtTime, parseLocal, translate, compassLabel } from './i18n';
 import { convertPrecip, convertTemp, convertWind, defaultUnits, fmtPrecip, fmtTemp, fmtWind } from './units';
-import { WMO_KEYS, compassIndex, tempColor, tempGradient, weatherInfo } from './weather';
+import { WMO_ICONS, WMO_KEYS, compassIndex, skyFor, tempColor, tempGradient, weatherInfo } from './weather';
 import { chartRange, currentHourIndex, nowValues, placeId, placeNow, todayIndex, type Forecast } from './api';
 
 describe('i18n', () => {
@@ -96,9 +96,22 @@ describe('units', () => {
 
 describe('weather codes', () => {
   it('maps codes to texts and day / night icons', () => {
-    expect(weatherInfo(0, true)).toEqual({ key: 'clear', icon: '☀️' });
-    expect(weatherInfo(0, false)).toEqual({ key: 'clear', icon: '🌙' });
-    expect(weatherInfo(1234).key).toBe('unknown');
+    expect(weatherInfo(0, true)).toEqual({ key: 'clear', icon: 'clear-day' });
+    expect(weatherInfo(0, false)).toEqual({ key: 'clear', icon: 'clear-night' });
+    expect(weatherInfo(1234)).toEqual({ key: 'unknown', icon: 'not-available' });
+  });
+
+  it('has an icon file for every weather icon', () => {
+    const files = new Set(Object.keys(import.meta.glob('../assets/wx/*.svg')).map((f) => f.slice(f.lastIndexOf('/') + 1, -4)));
+    for (const name of WMO_ICONS) expect(files.has(name), name).toBe(true);
+  });
+
+  it('picks the sky theme', () => {
+    expect(skyFor(0, true)).toBe('clear');
+    expect(skyFor(3, true)).toBe('cloudy');
+    expect(skyFor(63, true)).toBe('rain');
+    expect(skyFor(73, true)).toBe('snow');
+    expect(skyFor(63, false)).toBe('night');
   });
 });
 

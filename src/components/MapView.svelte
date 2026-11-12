@@ -1,4 +1,6 @@
 <script lang="ts">
+  import PlayIcon from '@lucide/svelte/icons/play';
+  import PauseIcon from '@lucide/svelte/icons/pause';
   import { onDestroy, onMount } from 'svelte';
   import type * as Leaflet from 'leaflet';
   import { radarFrames, type Place, type RadarFrame } from '../lib/api';
@@ -113,7 +115,7 @@
 {#if radarOn && frames.length}
   <div class="radar">
     <button class="icon-btn small" aria-label={playing ? t('pause') : t('play')} title={playing ? t('pause') : t('play')} onclick={play}>
-      {playing ? '⏸' : '▶'}
+      {#if playing}<PauseIcon size={16} />{:else}<PlayIcon size={16} />{/if}
     </button>
     <input
       type="range"

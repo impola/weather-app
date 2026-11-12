@@ -11,6 +11,9 @@
   import DayDetail from './components/DayDetail.svelte';
   import MapView from './components/MapView.svelte';
   import Settings from './components/Settings.svelte';
+  import Details from './components/Details.svelte';
+  import SettingsIcon from '@lucide/svelte/icons/settings';
+  import { SKY_TOP, skyFor } from './lib/weather';
 
   const STOCKHOLM: Place = { id: placeId(59.3293, 18.0686), name: 'Stockholm', detail: 'Sverige', lat: 59.3293, lon: 18.0686 };
   const FRESH_MS = 10 * 60 * 1000;
@@ -127,9 +130,14 @@
     return () => document.removeEventListener('visibilitychange', onVisible);
   });
 
-  // night colours when it is dark at the place shown
+  // colours follow the weather and the time of day at the place shown
   $effect(() => {
-    document.body.classList.toggle('night', forecast ? nowValues(forecast).is_day === 0 : false);
+    const nv = forecast ? nowValues(forecast) : null;
+    const sky = nv ? skyFor(nv.weather_code, nv.is_day === 1) : 'clear';
+    const body = document.body;
+    for (const c of ['sky-clear', 'sky-cloudy', 'sky-rain', 'sky-snow', 'night']) body.classList.remove(c);
+    body.classList.add(sky === 'night' ? 'night' : `sky-${sky}`);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', SKY_TOP[sky]);
   });
 
   // swipe left / right between places (not on the chart or the map)
@@ -153,10 +161,10 @@
 
 <div class="app">
   <header class="top">
-    <PlaceBar onshow={show} onlocate={locate} />
-    <button class="icon-btn gear" aria-label={t('settings')} title={t('settings')} onclick={() => (settingsOpen = true)}>⚙️</button>
+    <div class="placebar"><PlaceBar onshow={show} onlocate={locate} /></div>
+    <button class="icon-btn gear" aria-label={t('settings')} title={t('settings')} onclick={() => (settingsOpen = true)}><SettingsIcon size={20} /></button>
+    <div class="tabs-wrap"><PlaceTabs onshow={show} /></div>
   </header>
-  <PlaceTabs onshow={show} />
 
   {#if message}
     <p class="status" role="status">{message}</p>
@@ -171,9 +179,10 @@
   {#if forecast && settings.active}
     <main class="grid" onpointerdown={swipeStart} onpointerup={swipeEnd} onpointercancel={() => (swipe = null)}>
       <section class="current"><Current {forecast} place={settings.active} {fetchedAt} {loading} /></section>
+      <section class="card now"><Details {forecast} /></section>
       <section class="card chart no-swipe"><HourChart {forecast} day={selDay} {today} /></section>
       <section class="card days"><DayList {forecast} day={selDay} {today} onselect={(d) => (day = d)} /></section>
-      <section class="card detail"><DayDetail {forecast} day={selDay} {today} /></section>
+      <section class="card dayinfo"><DayDetail {forecast} day={selDay} {today} /></section>
       <section class="card map no-swipe"><MapView place={settings.active} onpick={pickOnMap} /></section>
     </main>
     <p class="credit">

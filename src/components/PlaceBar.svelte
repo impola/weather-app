@@ -1,4 +1,7 @@
 <script lang="ts">
+  import SearchIcon from '@lucide/svelte/icons/search';
+  import StarIcon from '@lucide/svelte/icons/star';
+  import LocateIcon from '@lucide/svelte/icons/locate-fixed';
   import { searchPlaces, type Place } from '../lib/api';
   import { isSaved, settings, t, toggleSaved } from '../lib/state.svelte';
 
@@ -71,7 +74,7 @@
   <div class="row">
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions (arrow keys move between the results) -->
     <form class="search" role="search" onsubmit={onSubmit} onkeydown={onKey} onfocusout={onFocusOut}>
-      <span class="glass" aria-hidden="true">🔍</span>
+      <span class="glass" aria-hidden="true"><SearchIcon size={17} /></span>
       <input
         bind:this={input}
         bind:value={query}
@@ -99,7 +102,7 @@
                 aria-pressed={isSaved(r)}
                 aria-label={isSaved(r) ? t('unsave') : t('save')}
                 title={isSaved(r) ? t('unsave') : t('save')}
-                onclick={() => toggleSaved(r)}>{isSaved(r) ? '★' : '☆'}</button>
+                onclick={() => toggleSaved(r)}><StarIcon size={20} fill={isSaved(r) ? 'currentColor' : 'none'} /></button>
             </li>
           {:else}
             <li class="none">{t('noMatches')}</li>
@@ -107,7 +110,7 @@
         </ul>
       {/if}
     </form>
-    <button class="icon-btn" aria-label={t('useLocation')} title={t('useLocation')} onclick={onlocate}>📍</button>
+    <button class="icon-btn" aria-label={t('useLocation')} title={t('useLocation')} onclick={onlocate}><LocateIcon size={20} /></button>
   </div>
 
 </div>
@@ -117,7 +120,7 @@
   .row { display: flex; gap: 8px; }
 
   .search { position: relative; flex: 1; min-width: 0; }
-  .glass { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 14px; opacity: 0.8; pointer-events: none; }
+  .glass { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; display: grid; }
   input {
     width: 100%;
     height: 44px;

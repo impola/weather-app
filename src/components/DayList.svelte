@@ -1,4 +1,5 @@
 <script lang="ts">
+  import WxIcon from './WxIcon.svelte';
   import { nowValues, type Forecast } from '../lib/api';
   import { fmtDayShort, fmtPct } from '../lib/i18n';
   import { fmtTemp } from '../lib/units';
@@ -46,7 +47,7 @@
         onclick={() => onselect(i)}>
         <span class="name">{name}</span>
         <span class="wx">
-          <span class="icon" title={t(w.key as never)}>{w.icon}</span>
+          <span class="icon" title={t(w.key as never)}><WxIcon name={w.icon} size={34} /></span>
           {#if pop != null && pop >= 20}<span class="pop">{fmtPct(settings.lang, pop)}</span>{/if}
         </span>
         <span class="lo">{fmtTemp(lo, u.temp)}</span>
@@ -79,10 +80,10 @@
     transition: background-color 0.15s;
   }
   button:hover { background: var(--hover); }
-  button.selected { background: rgba(255, 255, 255, 0.2); }
+  button.selected { background: var(--selected); }
   .name { font-weight: 500; white-space: nowrap; }
   .wx { display: grid; justify-items: center; line-height: 1.1; }
-  .icon { font-size: 21px; }
+  .icon { display: grid; margin: -4px 0 -2px; }
   .pop { font-size: 11px; font-weight: 600; color: var(--rain); }
   .lo { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
   .hi { text-align: right; font-variant-numeric: tabular-nums; }
